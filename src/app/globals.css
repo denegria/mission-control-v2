@@ -34,7 +34,7 @@ body {
 
 .mc-shell-wrap {
   min-height: 100vh;
-  padding: 8px;
+  padding: 0;
 }
 
 .mc-galaxy {
@@ -52,14 +52,14 @@ body {
 .mc-frame {
   position: relative;
   z-index: 1;
-  width: min(1260px, 100%);
-  margin: 0 auto;
-  min-height: calc(100vh - 16px);
-  border-radius: 14px;
+  width: 100%;
+  margin: 0;
+  min-height: 100vh;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid rgba(100, 113, 140, 0.25);
+  border: 0;
   background: linear-gradient(180deg, rgba(6, 9, 15, 0.95), rgba(4, 6, 12, 0.96));
-  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.5);
+  box-shadow: none;
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
 }
