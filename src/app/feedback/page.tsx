@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/mc/AppShell";
 import { PlaceholderTabScreen } from "@/components/mc/ReferenceScreens";
 
-export default function TeamPage() {
+export default function FeedbackPage() {
   return (
-    <AppShell activeTab="team">
-      <PlaceholderTabScreen title="Team" />
+    <AppShell activeTab="feedback">
+      <PlaceholderTabScreen title="Feedback" />
     </AppShell>
   );
 }

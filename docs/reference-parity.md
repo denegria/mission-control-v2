@@ -59,23 +59,15 @@ Use this file to lock screenshot-derived measurements before implementing deep U
 8. ____
 
 ## Local Reference Files (`docs/reference/`)
-### Primary UI parity targets
+### Primary UI parity targets (active)
 - `linear-dashboard-board-facecam-01.jpg`
 - `linear-dashboard-board-facecam-02.jpg`
 - `linear-dashboard-board-facecam-03.jpg`
-
-### Secondary style/context references
-- `cluster-health-card-dark-01.jpg`
-- `mobile-dispatch-form-dark-01.jpg`
-- `summary-comparison-table-01.jpg`
-- `telegram-group-sidebar-lab-01.jpg`
-
-### Archived chat/context captures (non-primary for dashboard parity)
-- `telegram-chat-thread-giuseppe-01.jpg`
-- `telegram-chat-thread-model-note-01.jpg`
-- `telegram-chat-routing-note-01.jpg`
-- `telegram-builder-chat-crop-01.jpg`
-- `social-post-openclaw-stack-01.jpg`
+- `linear-dashboard-board-facecam-04.jpg`
+- `linear-dashboard-calendar-facecam-01.jpg`
+- `linear-dashboard-projects-facecam-01.jpg`
+- `linear-dashboard-memory-facecam-01.jpg`
+- `linear-dashboard-docs-facecam-01.jpg`
 
 ## Parity Gate
 - [ ] Sidebar order matches references
