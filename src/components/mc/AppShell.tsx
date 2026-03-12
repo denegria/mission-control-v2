@@ -44,7 +44,7 @@ export function AppShell({ activeTab, children }: AppShellProps) {
             <div className="mc-top-right">
               <button className="mc-search">⌕ Search ⌘K</button>
               <button className="mc-top-btn">⏸ Pause</button>
-              <button className="mc-top-btn">Ping Giuseppe</button>
+              <button className="mc-top-btn">Ping operator</button>
               <button className="mc-icon-btn">◉</button>
               <button className="mc-icon-btn">↻</button>
             </div>
