@@ -306,6 +306,7 @@ export function TaskDetailScreen({
               );
               const flowRuns = runs.filter((run) => run.flowId === flow.id);
               const latestRun = flowRuns[0];
+              const recentRuns = flowRuns.slice(0, 3);
               const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
               const approvedApprovals = approvals.filter(
                 (approval) =>
@@ -360,6 +361,14 @@ export function TaskDetailScreen({
                       Update owner
                     </button>
                   </form>
+                  <div>
+                    <p className="mc-meta-line">Execution</p>
+                    <p className="mc-meta-line">
+                      {approvedApprovals.length > 0
+                        ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available`
+                        : "No approved approval available for dispatch yet"}
+                    </p>
+                  </div>
                   <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
                     <input type="hidden" name="flowId" value={flow.id} />
                     <select
@@ -368,7 +377,7 @@ export function TaskDetailScreen({
                       defaultValue={approvedApprovals[0]?.id ?? ""}
                       disabled={approvedApprovals.length === 0}
                     >
-                      {approvedApprovals.length === 0 ? <option value="">No approved approval available</option> : null}
+                      {approvedApprovals.length === 0 ? <option value="">Select approved approval</option> : null}
                       {approvedApprovals.map((approval) => (
                         <option key={approval.id} value={approval.id}>
                           {approval.targetType === "flow" ? "Flow" : "Task"} approval • {approval.requestedAction}
@@ -388,14 +397,26 @@ export function TaskDetailScreen({
                   </form>
                   {latestRun ? (
                     <div>
-                      <p>
-                        Latest run: {latestRun.status.replaceAll("_", " ")} via {fmtRunAdapter(latestRun.adapter)}
+                      <p className="mc-meta-line">
+                        Latest run • {latestRun.status.replaceAll("_", " ")} via {fmtRunAdapter(latestRun.adapter)}
                         {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
                       </p>
                       {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
                       {latestRun.resultPayload?.finalOutput ? <pre className="mc-inline-input">{latestRun.resultPayload.finalOutput}</pre> : null}
                       {latestRun.errorPayload?.message ? <p>{latestRun.errorPayload.message}</p> : null}
-                      {flowRuns.length > 1 ? <p>{flowRuns.length} total runs recorded for this flow.</p> : null}
+                      {recentRuns.length > 1 ? (
+                        <div>
+                          <p className="mc-meta-line">Recent run history</p>
+                          <ul className="mc-activity-feed">
+                            {recentRuns.map((run) => (
+                              <li key={run.id}>
+                                {run.status.replaceAll("_", " ")} via {fmtRunAdapter(run.adapter)}
+                                {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <p>No runs yet.</p>
