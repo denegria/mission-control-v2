@@ -335,12 +335,6 @@ function touchTask(taskId: string, actor: string) {
       type: "task_updated",
       actor,
       payload: { task: updatedTask },
-      timeline: {
-        actor,
-        type: "task_updated",
-        summary: "Task metadata updated",
-        payload: { updatedAt: now },
-      },
     }),
   );
 }

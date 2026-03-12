@@ -396,7 +396,7 @@ export default async function TaskDetailPage({
       result.ok
         ? {
             dispatchStatus: "success",
-            dispatchMessage: `Run queued via ${adapter.replace("acpx_", "")}.`,
+            dispatchMessage: `${adapter.replace("acpx_", "")} run started.`,
           }
         : {
             dispatchStatus: "error",

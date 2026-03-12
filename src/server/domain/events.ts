@@ -228,7 +228,7 @@ export function eventForRunCreated(run: Run, actor: string): MissionControlEvent
       actor,
       flowId: run.flowId,
       type: "run_created",
-      summary: `Run queued for ${run.agent} via ${run.adapter}`,
+      summary: `Run queued for ${run.agent} (${run.adapter})`,
       payload: { runId: run.id, status: run.status, triggerSource: run.triggerSource ?? null },
     },
   });
@@ -247,7 +247,7 @@ export function eventForRunStarted(run: Run, actor: string): MissionControlEvent
       actor,
       flowId: run.flowId,
       type: "run_started",
-      summary: `Run started on ${run.adapter}`,
+      summary: `Run started with ${run.agent}`,
       payload: { runId: run.id, agent: run.agent, startedAt: run.startedAt ?? null },
     },
   });
@@ -266,7 +266,7 @@ export function eventForRunCompleted(run: Run, actor: string): MissionControlEve
       actor,
       flowId: run.flowId,
       type: "run_completed",
-      summary: "Run completed",
+      summary: `Run completed with ${run.agent}`,
       payload: { runId: run.id, finishedAt: run.finishedAt ?? null, summary: run.resultPayload?.summary ?? null },
     },
   });
@@ -285,7 +285,7 @@ export function eventForRunFailed(run: Run, actor: string): MissionControlEvent 
       actor,
       flowId: run.flowId,
       type: "run_failed",
-      summary: "Run failed",
+      summary: `Run failed with ${run.agent}`,
       payload: { runId: run.id, finishedAt: run.finishedAt ?? null, error: run.errorPayload?.message ?? null },
     },
   });

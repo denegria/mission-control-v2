@@ -362,11 +362,11 @@ export function TaskDetailScreen({
                     </button>
                   </form>
                   <div>
-                    <p className="mc-meta-line">Execution</p>
+                    <p className="mc-meta-line">Execution lane</p>
                     <p className="mc-meta-line">
                       {approvedApprovals.length > 0
-                        ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available`
-                        : "No approved approval available for dispatch yet"}
+                        ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available for dispatch`
+                        : "Dispatch unavailable until an approval is approved"}
                     </p>
                   </div>
                   <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
