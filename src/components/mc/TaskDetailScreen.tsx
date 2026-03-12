@@ -7,6 +7,7 @@ import {
   PROTOCOL_MESSAGE_TYPES,
   PROTOCOL_STATUSES,
   RISK_CATEGORIES,
+  RUN_ADAPTERS,
   TASK_STATUSES,
   type Approval,
   type Flow,
@@ -15,6 +16,7 @@ import {
   type LaneLink,
   type Project,
   type ProtocolMessage,
+  type Run,
   type Settings,
   type Task,
   type TimelineEvent,
@@ -40,11 +42,16 @@ function fmtCanonicalTransition(transition?: ProtocolMessage["canonicalTransitio
   return `${transition.type} • ${transition.transition.replaceAll("_", " ")}`;
 }
 
+function fmtRunAdapter(adapter: Run["adapter"]) {
+  return adapter.replace("acpx_", "");
+}
+
 export function TaskDetailScreen({
   task,
   flows,
   handoffs,
   approvals,
+  runs,
   protocolMessages,
   lanes,
   timeline,
@@ -60,17 +67,20 @@ export function TaskDetailScreen({
   onSubmitHandoff,
   onUpdateHandoffStatus,
   onRequestApproval,
+  onDispatchFlowRun,
   onLinkLane,
   onLinkGithubObject,
   onCreateGithubIssue,
   onEmitProtocolMessage,
   onUpdateProtocolMessageStatus,
   githubIssueFeedback,
+  dispatchFeedback,
 }: {
   task: Task;
   flows: Flow[];
   handoffs: Handoff[];
   approvals: Approval[];
+  runs: Run[];
   protocolMessages: ProtocolMessage[];
   lanes: LaneLink[];
   timeline: TimelineEvent[];
@@ -86,12 +96,14 @@ export function TaskDetailScreen({
   onSubmitHandoff: (formData: FormData) => void | Promise<void>;
   onUpdateHandoffStatus: (formData: FormData) => void | Promise<void>;
   onRequestApproval: (formData: FormData) => void | Promise<void>;
+  onDispatchFlowRun: (formData: FormData) => void | Promise<void>;
   onLinkLane: (formData: FormData) => void | Promise<void>;
   onLinkGithubObject: (formData: FormData) => void | Promise<void>;
   onCreateGithubIssue: (formData: FormData) => void | Promise<void>;
   onEmitProtocolMessage: (formData: FormData) => void | Promise<void>;
   onUpdateProtocolMessageStatus: (formData: FormData) => void | Promise<void>;
   githubIssueFeedback?: { tone: "success" | "error"; message: string };
+  dispatchFeedback?: { tone: "success" | "error"; message: string };
 }) {
   const currentProjectId = task.linkedProjects?.[0] ?? "";
   const currentProjectName = projects.find((project) => project.id === currentProjectId)?.name ?? "Unlinked";
@@ -279,6 +291,11 @@ export function TaskDetailScreen({
               Create flow
             </button>
           </form>
+          {dispatchFeedback ? (
+            <p className="mc-meta-line" data-tone={dispatchFeedback.tone}>
+              {dispatchFeedback.message}
+            </p>
+          ) : null}
           <div className="mc-task-stack">
             {flows.map((flow) => {
               const flowProtocolItems = protocolMessages.filter(
@@ -286,6 +303,15 @@ export function TaskDetailScreen({
               );
               const flowExceptions = flowProtocolItems.filter(
                 (message) => message.type === "blocker_raise" || message.type === "escalation_raise",
+              );
+              const flowRuns = runs.filter((run) => run.flowId === flow.id);
+              const latestRun = flowRuns[0];
+              const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
+              const approvedApprovals = approvals.filter(
+                (approval) =>
+                  approval.status === "approved" &&
+                  ((approval.targetType === "flow" && approval.targetId === flow.id) ||
+                    (approval.targetType === "task" && approval.targetId === task.id)),
               );
 
               return (
@@ -334,6 +360,46 @@ export function TaskDetailScreen({
                       Update owner
                     </button>
                   </form>
+                  <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
+                    <input type="hidden" name="flowId" value={flow.id} />
+                    <select
+                      name="approvalId"
+                      className="mc-filter-select"
+                      defaultValue={approvedApprovals[0]?.id ?? ""}
+                      disabled={approvedApprovals.length === 0}
+                    >
+                      {approvedApprovals.length === 0 ? <option value="">No approved approval available</option> : null}
+                      {approvedApprovals.map((approval) => (
+                        <option key={approval.id} value={approval.id}>
+                          {approval.targetType === "flow" ? "Flow" : "Task"} approval • {approval.requestedAction}
+                        </option>
+                      ))}
+                    </select>
+                    <select name="adapter" className="mc-filter-select" defaultValue="acpx_codex" disabled={Boolean(activeRun)}>
+                      {RUN_ADAPTERS.map((adapter) => (
+                        <option key={adapter} value={adapter}>
+                          {fmtRunAdapter(adapter)}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="mc-filter-pill" type="submit" disabled={approvedApprovals.length === 0 || Boolean(activeRun)}>
+                      {activeRun ? `Run ${activeRun.status}` : "Dispatch flow run"}
+                    </button>
+                  </form>
+                  {latestRun ? (
+                    <div>
+                      <p>
+                        Latest run: {latestRun.status.replaceAll("_", " ")} via {fmtRunAdapter(latestRun.adapter)}
+                        {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
+                      </p>
+                      {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
+                      {latestRun.resultPayload?.finalOutput ? <pre className="mc-inline-input">{latestRun.resultPayload.finalOutput}</pre> : null}
+                      {latestRun.errorPayload?.message ? <p>{latestRun.errorPayload.message}</p> : null}
+                      {flowRuns.length > 1 ? <p>{flowRuns.length} total runs recorded for this flow.</p> : null}
+                    </div>
+                  ) : (
+                    <p>No runs yet.</p>
+                  )}
                   {flow.summary ? <p>{flow.summary}</p> : null}
                 </article>
               );

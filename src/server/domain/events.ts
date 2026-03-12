@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { Approval, Flow, Handoff, ProtocolMessage, Task, TimelineEvent } from "@/domain/schema";
+import type { Approval, Flow, Handoff, ProtocolMessage, Run, Task, TimelineEvent } from "@/domain/schema";
 import { asJson, getSqliteDb } from "@/server/db/sqlite";
 
-type AggregateType = "task" | "flow" | "handoff" | "approval" | "timeline" | "lane" | "settings" | "project" | "protocol_message";
+type AggregateType = "task" | "flow" | "handoff" | "approval" | "timeline" | "lane" | "settings" | "project" | "protocol_message" | "run";
 
 export type MissionControlEventType =
   | "task_created"
@@ -16,6 +16,11 @@ export type MissionControlEventType =
   | "handoff_status_changed"
   | "approval_requested"
   | "approval_decided"
+  | "run_created"
+  | "run_started"
+  | "run_completed"
+  | "run_failed"
+  | "run_canceled"
   | "lane_linked"
   | "protocol_message_emitted"
   | "protocol_message_status_changed";
@@ -206,6 +211,101 @@ export function eventForProtocolMessageStatusChanged(input: {
         statusNote: message.statusNote ?? null,
         canonicalTransition: message.canonicalTransition ?? null,
       },
+    },
+  });
+}
+
+export function eventForRunCreated(run: Run, actor: string): MissionControlEvent {
+  return newEvent({
+    aggregateType: "run",
+    aggregateId: run.id,
+    taskId: run.taskId,
+    flowId: run.flowId,
+    type: "run_created",
+    actor,
+    payload: { run },
+    timeline: {
+      actor,
+      flowId: run.flowId,
+      type: "run_created",
+      summary: `Run queued for ${run.agent} via ${run.adapter}`,
+      payload: { runId: run.id, status: run.status, triggerSource: run.triggerSource ?? null },
+    },
+  });
+}
+
+export function eventForRunStarted(run: Run, actor: string): MissionControlEvent {
+  return newEvent({
+    aggregateType: "run",
+    aggregateId: run.id,
+    taskId: run.taskId,
+    flowId: run.flowId,
+    type: "run_started",
+    actor,
+    payload: { run },
+    timeline: {
+      actor,
+      flowId: run.flowId,
+      type: "run_started",
+      summary: `Run started on ${run.adapter}`,
+      payload: { runId: run.id, agent: run.agent, startedAt: run.startedAt ?? null },
+    },
+  });
+}
+
+export function eventForRunCompleted(run: Run, actor: string): MissionControlEvent {
+  return newEvent({
+    aggregateType: "run",
+    aggregateId: run.id,
+    taskId: run.taskId,
+    flowId: run.flowId,
+    type: "run_completed",
+    actor,
+    payload: { run },
+    timeline: {
+      actor,
+      flowId: run.flowId,
+      type: "run_completed",
+      summary: "Run completed",
+      payload: { runId: run.id, finishedAt: run.finishedAt ?? null, summary: run.resultPayload?.summary ?? null },
+    },
+  });
+}
+
+export function eventForRunFailed(run: Run, actor: string): MissionControlEvent {
+  return newEvent({
+    aggregateType: "run",
+    aggregateId: run.id,
+    taskId: run.taskId,
+    flowId: run.flowId,
+    type: "run_failed",
+    actor,
+    payload: { run },
+    timeline: {
+      actor,
+      flowId: run.flowId,
+      type: "run_failed",
+      summary: "Run failed",
+      payload: { runId: run.id, finishedAt: run.finishedAt ?? null, error: run.errorPayload?.message ?? null },
+    },
+  });
+}
+
+export function eventForRunCanceled(run: Run, actor: string): MissionControlEvent {
+  return newEvent({
+    aggregateType: "run",
+    aggregateId: run.id,
+    taskId: run.taskId,
+    flowId: run.flowId,
+    type: "run_canceled",
+    actor,
+    payload: { run },
+    timeline: {
+      actor,
+      flowId: run.flowId,
+      type: "run_canceled",
+      summary: "Run canceled",
+      payload: { runId: run.id, finishedAt: run.finishedAt ?? null },
     },
   });
 }

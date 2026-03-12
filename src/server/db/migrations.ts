@@ -173,6 +173,34 @@ export function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS idx_protocol_messages_task_id ON protocol_messages(task_id);
     CREATE INDEX IF NOT EXISTS idx_protocol_messages_flow_id ON protocol_messages(flow_id);
+
+    CREATE TABLE IF NOT EXISTS runs (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      flow_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      adapter TEXT NOT NULL,
+      agent TEXT NOT NULL,
+      requested_by TEXT NOT NULL,
+      approved_by TEXT,
+      approval_id TEXT,
+      trigger_source TEXT,
+      parent_run_id TEXT,
+      input_payload_json TEXT NOT NULL,
+      result_payload_json TEXT,
+      error_payload_json TEXT,
+      started_at TEXT,
+      finished_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY(flow_id) REFERENCES flows(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_runs_task_id ON runs(task_id);
+    CREATE INDEX IF NOT EXISTS idx_runs_flow_id ON runs(flow_id);
+    CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
+    CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
   `);
 
   addColumnIfMissing("projects", "github_repo", "github_repo TEXT");

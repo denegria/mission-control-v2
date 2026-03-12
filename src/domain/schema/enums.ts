@@ -70,3 +70,12 @@ export type AutonomyScope = (typeof AUTONOMY_SCOPES)[number];
 
 export const PROTOCOL_REFERENCE_TYPES = ["task", "flow", "handoff", "approval"] as const;
 export type ProtocolReferenceType = (typeof PROTOCOL_REFERENCE_TYPES)[number];
+
+export const RUN_STATUSES = ["queued", "running", "completed", "failed", "canceled"] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+export const RUN_ADAPTERS = ["acpx_codex", "acpx_gemini"] as const;
+export type RunAdapter = (typeof RUN_ADAPTERS)[number];
+
+export const RUN_TRIGGER_SOURCES = ["manual_dispatch", "approval_handoff", "retry", "follow_up"] as const;
+export type RunTriggerSource = (typeof RUN_TRIGGER_SOURCES)[number];

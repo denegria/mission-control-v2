@@ -1,4 +1,4 @@
-import type { Approval, CanonicalTransition, Flow, Handoff, LaneLink, Project, ProtocolMessage, ProtocolReference, Settings, Task, TimelineEvent } from "@/domain/schema";
+import type { Approval, CanonicalTransition, Flow, Handoff, LaneLink, Project, ProtocolMessage, ProtocolReference, Run, RunErrorPayload, RunInputPayload, RunResultPayload, Settings, Task, TimelineEvent } from "@/domain/schema";
 import {
   asApprovalStatus,
   asApprovalTargetType,
@@ -7,6 +7,9 @@ import {
   asFlowType,
   asHandoffStatus,
   asPriority,
+  asRunAdapter,
+  asRunStatus,
+  asRunTriggerSource,
   asProtocolMessageType,
   asProtocolReferenceType,
   asProtocolStatus,
@@ -160,6 +163,36 @@ function mapProtocolMessage(row: Record<string, unknown>): ProtocolMessage {
   };
 }
 
+function mapRun(row: Record<string, unknown>): Run {
+  return {
+    id: String(row.id),
+    taskId: String(row.task_id),
+    flowId: String(row.flow_id),
+    status: asRunStatus(String(row.status)),
+    adapter: asRunAdapter(String(row.adapter)),
+    agent: String(row.agent),
+    requestedBy: String(row.requested_by),
+    approvedBy: row.approved_by ? String(row.approved_by) : undefined,
+    approvalId: row.approval_id ? String(row.approval_id) : undefined,
+    triggerSource: row.trigger_source ? asRunTriggerSource(String(row.trigger_source)) : undefined,
+    parentRunId: row.parent_run_id ? String(row.parent_run_id) : undefined,
+    inputPayload: fromJson<RunInputPayload>(row.input_payload_json as string, {
+      prompt: "",
+      flowTitle: "",
+      taskTitle: "",
+      taskObjective: "",
+      owner: "",
+      actor: "",
+    }),
+    resultPayload: fromJson<RunResultPayload | null>(row.result_payload_json as string | null, null) ?? undefined,
+    errorPayload: fromJson<RunErrorPayload | null>(row.error_payload_json as string | null, null) ?? undefined,
+    startedAt: row.started_at ? String(row.started_at) : undefined,
+    finishedAt: row.finished_at ? String(row.finished_at) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
 function mapLaneLink(row: Record<string, unknown>): LaneLink {
   return {
     id: String(row.id),
@@ -220,6 +253,7 @@ export function getTaskDetail(taskId: string): {
   flows: Flow[];
   handoffs: Handoff[];
   approvals: Approval[];
+  runs: Run[];
   protocolMessages: ProtocolMessage[];
   lanes: LaneLink[];
   timeline: TimelineEvent[];
@@ -235,6 +269,7 @@ export function getTaskDetail(taskId: string): {
   const flows = (db.prepare("SELECT * FROM flows WHERE task_id = ? ORDER BY created_at ASC").all(taskId) as Record<string, unknown>[]).map(mapFlow);
   const handoffs = (db.prepare("SELECT * FROM handoffs WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapHandoff);
   const approvals = (db.prepare("SELECT * FROM approvals WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapApproval);
+  const runs = (db.prepare("SELECT * FROM runs WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapRun);
   const protocolMessages = (
     db.prepare("SELECT * FROM protocol_messages WHERE task_id = ? ORDER BY updated_at DESC, created_at DESC").all(taskId) as Record<string, unknown>[]
   ).map(mapProtocolMessage);
@@ -250,10 +285,34 @@ export function getTaskDetail(taskId: string): {
     flows,
     handoffs,
     approvals,
+    runs,
     protocolMessages,
     lanes,
     timeline,
   };
+}
+
+export function getRun(runId: string): Run | null {
+  ensureMissionControlFoundation();
+  const db = getSqliteDb();
+  const row = db.prepare("SELECT * FROM runs WHERE id = ?").get(runId) as Record<string, unknown> | undefined;
+  return row ? mapRun(row) : null;
+}
+
+export function listRunsForFlow(flowId: string): Run[] {
+  ensureMissionControlFoundation();
+  const db = getSqliteDb();
+  const rows = db.prepare("SELECT * FROM runs WHERE flow_id = ? ORDER BY created_at DESC").all(flowId) as Record<string, unknown>[];
+  return rows.map(mapRun);
+}
+
+export function getActiveRunForFlow(flowId: string): Run | null {
+  ensureMissionControlFoundation();
+  const db = getSqliteDb();
+  const row = db
+    .prepare("SELECT * FROM runs WHERE flow_id = ? AND status IN ('queued', 'running') ORDER BY created_at DESC LIMIT 1")
+    .get(flowId) as Record<string, unknown> | undefined;
+  return row ? mapRun(row) : null;
 }
 
 export function listPendingApprovals() {

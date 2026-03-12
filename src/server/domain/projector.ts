@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Approval, Flow, Handoff, ProtocolMessage, Task } from "@/domain/schema";
+import type { Approval, Flow, Handoff, ProtocolMessage, Run, Task } from "@/domain/schema";
 import { asJson, getSqliteDb } from "@/server/db/sqlite";
 import type { MissionControlEvent } from "@/server/domain/events";
 
@@ -209,6 +209,54 @@ function upsertProtocolMessage(message: ProtocolMessage) {
   );
 }
 
+function upsertRun(run: Run) {
+  const db = getSqliteDb();
+  db.prepare(
+    `
+      INSERT INTO runs (
+        id, task_id, flow_id, status, adapter, agent, requested_by, approved_by, approval_id, trigger_source, parent_run_id,
+        input_payload_json, result_payload_json, error_payload_json, started_at, finished_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        task_id=excluded.task_id,
+        flow_id=excluded.flow_id,
+        status=excluded.status,
+        adapter=excluded.adapter,
+        agent=excluded.agent,
+        requested_by=excluded.requested_by,
+        approved_by=excluded.approved_by,
+        approval_id=excluded.approval_id,
+        trigger_source=excluded.trigger_source,
+        parent_run_id=excluded.parent_run_id,
+        input_payload_json=excluded.input_payload_json,
+        result_payload_json=excluded.result_payload_json,
+        error_payload_json=excluded.error_payload_json,
+        started_at=excluded.started_at,
+        finished_at=excluded.finished_at,
+        updated_at=excluded.updated_at
+    `,
+  ).run(
+    run.id,
+    run.taskId,
+    run.flowId,
+    run.status,
+    run.adapter,
+    run.agent,
+    run.requestedBy,
+    run.approvedBy ?? null,
+    run.approvalId ?? null,
+    run.triggerSource ?? null,
+    run.parentRunId ?? null,
+    asJson(run.inputPayload),
+    asJson(run.resultPayload ?? null),
+    asJson(run.errorPayload ?? null),
+    run.startedAt ?? null,
+    run.finishedAt ?? null,
+    run.createdAt,
+    run.updatedAt,
+  );
+}
+
 function writeTimeline(event: MissionControlEvent) {
   if (!event.taskId) {
     return;
@@ -264,6 +312,17 @@ export function projectEvent(event: MissionControlEvent) {
       const taskId = (event.payload.taskId as string | undefined) ?? event.taskId;
       if (approval && taskId) {
         upsertApproval(approval, taskId);
+      }
+      break;
+    }
+    case "run_created":
+    case "run_started":
+    case "run_completed":
+    case "run_failed":
+    case "run_canceled": {
+      const run = event.payload.run as Run | undefined;
+      if (run) {
+        upsertRun(run);
       }
       break;
     }

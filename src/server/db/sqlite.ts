@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import Database from "better-sqlite3";
 
 type DatabaseSyncLike = {
   exec: (sql: string) => void;
@@ -21,9 +22,8 @@ export function getSqliteDb() {
   const absolutePath = resolve(process.cwd(), configuredPath);
   mkdirSync(dirname(absolutePath), { recursive: true });
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { DatabaseSync } = require("node:sqlite") as { DatabaseSync: new (path: string) => DatabaseSyncLike };
-  dbInstance = new DatabaseSync(absolutePath);
+  const rawDb = new Database(absolutePath);
+  dbInstance = rawDb as unknown as DatabaseSyncLike;
   dbInstance.exec("PRAGMA journal_mode = WAL;");
   dbInstance.exec("PRAGMA foreign_keys = ON;");
   return dbInstance as DatabaseSyncLike;

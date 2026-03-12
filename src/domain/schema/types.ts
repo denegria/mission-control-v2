@@ -11,6 +11,9 @@ import type {
   ProtocolMessageType,
   ProtocolReferenceType,
   ProtocolStatus,
+  RunAdapter,
+  RunStatus,
+  RunTriggerSource,
   RiskCategory,
   TaskStatus,
 } from "@/domain/schema/enums";
@@ -148,6 +151,50 @@ export type ProtocolMessage = {
   canonicalTransition?: CanonicalTransition;
 };
 
+export type RunInputPayload = {
+  prompt: string;
+  flowTitle: string;
+  flowObjective?: string;
+  taskTitle: string;
+  taskObjective: string;
+  owner: string;
+  actor: string;
+};
+
+export type RunResultPayload = {
+  finalOutput: string;
+  summary?: string;
+  rawOutput?: string;
+};
+
+export type RunErrorPayload = {
+  message: string;
+  code?: string;
+  retryable?: boolean;
+  rawOutput?: string;
+};
+
+export type Run = {
+  id: ID;
+  taskId: ID;
+  flowId: ID;
+  status: RunStatus;
+  adapter: RunAdapter;
+  agent: string;
+  requestedBy: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  inputPayload: RunInputPayload;
+  approvedBy?: string;
+  approvalId?: ID;
+  triggerSource?: RunTriggerSource;
+  parentRunId?: ID;
+  startedAt?: ISODateTime;
+  finishedAt?: ISODateTime;
+  resultPayload?: RunResultPayload;
+  errorPayload?: RunErrorPayload;
+};
+
 export type TimelineEventType =
   | "task_created"
   | "task_updated"
@@ -160,6 +207,11 @@ export type TimelineEventType =
   | "handoff_status_changed"
   | "approval_requested"
   | "approval_decided"
+  | "run_created"
+  | "run_started"
+  | "run_completed"
+  | "run_failed"
+  | "run_canceled"
   | "lane_linked"
   | "evidence_attached"
   | "protocol_message_emitted"

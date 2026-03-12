@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { AUTONOMY_SCOPES, FLOW_STATUSES, FLOW_TYPES, HANDOFF_STATUSES, PROTOCOL_MESSAGE_TYPES, PROTOCOL_STATUSES, TASK_STATUSES } from "@/domain/schema";
+import { AUTONOMY_SCOPES, FLOW_STATUSES, FLOW_TYPES, HANDOFF_STATUSES, PROTOCOL_MESSAGE_TYPES, PROTOCOL_STATUSES, RUN_ADAPTERS, TASK_STATUSES } from "@/domain/schema";
 import { AppShell } from "@/components/mc/AppShell";
 import { TaskDetailScreen } from "@/components/mc/TaskDetailScreen";
 import {
   createFlow,
   emitProtocolMessage,
   createGithubIssueForWork,
+  dispatchFlowRun,
   linkTaskLane,
   linkTaskGithubObject,
   linkFlowGithubObject,
@@ -32,7 +33,12 @@ export default async function TaskDetailPage({
   searchParams,
 }: {
   params: Promise<{ taskId: string }>;
-  searchParams: Promise<{ githubIssueStatus?: string; githubIssueMessage?: string }>;
+  searchParams: Promise<{
+    githubIssueStatus?: string;
+    githubIssueMessage?: string;
+    dispatchStatus?: string;
+    dispatchMessage?: string;
+  }>;
 }) {
   const { taskId } = await params;
   const statusParams = await searchParams;
@@ -358,6 +364,48 @@ export default async function TaskDetailPage({
     revalidatePath("/tasks");
   }
 
+  async function handleDispatchFlowRun(formData: FormData) {
+    "use server";
+
+    const flowId = String(formData.get("flowId") ?? "").trim();
+    const adapter = String(formData.get("adapter") ?? "").trim();
+    const approvalId = String(formData.get("approvalId") ?? "").trim();
+
+    if (!flowId || !RUN_ADAPTERS.includes(adapter as (typeof RUN_ADAPTERS)[number]) || !approvalId) {
+      const params = new URLSearchParams({
+        dispatchStatus: "error",
+        dispatchMessage: "Flow dispatch requires a valid adapter and an approved approval.",
+      });
+      redirect(`/tasks/${taskId}?${params.toString()}`);
+    }
+
+    const agent = adapter === "acpx_gemini" ? "gemini" : "codex";
+    const result = await dispatchFlowRun({
+      flowId,
+      adapter,
+      agent,
+      approvalId,
+      requestedBy: actorId,
+      triggerSource: "manual_dispatch",
+    });
+
+    revalidatePath(`/tasks/${taskId}`);
+    revalidatePath("/tasks");
+
+    const params = new URLSearchParams(
+      result.ok
+        ? {
+            dispatchStatus: "success",
+            dispatchMessage: `Run queued via ${adapter.replace("acpx_", "")}.`,
+          }
+        : {
+            dispatchStatus: "error",
+            dispatchMessage: result.error,
+          },
+    );
+    redirect(`/tasks/${taskId}?${params.toString()}`);
+  }
+
   const detail = getTaskDetail(taskId);
   const projects = listProjects();
 
@@ -377,6 +425,7 @@ export default async function TaskDetailPage({
         flows={detail.flows}
         handoffs={detail.handoffs}
         approvals={detail.approvals}
+        runs={detail.runs}
         protocolMessages={detail.protocolMessages}
         lanes={detail.lanes}
         timeline={detail.timeline}
@@ -392,6 +441,7 @@ export default async function TaskDetailPage({
         onSubmitHandoff={handleSubmitHandoff}
         onUpdateHandoffStatus={handleHandoffStatus}
         onRequestApproval={handleRequestApproval}
+        onDispatchFlowRun={handleDispatchFlowRun}
         onLinkLane={handleLinkLane}
         onLinkGithubObject={handleLinkGithubObject}
         onCreateGithubIssue={handleCreateGithubIssue}
@@ -402,6 +452,14 @@ export default async function TaskDetailPage({
             ? {
                 tone: statusParams.githubIssueStatus === "success" ? "success" : "error",
                 message: statusParams.githubIssueMessage,
+              }
+            : undefined
+        }
+        dispatchFeedback={
+          statusParams.dispatchStatus && statusParams.dispatchMessage
+            ? {
+                tone: statusParams.dispatchStatus === "success" ? "success" : "error",
+                message: statusParams.dispatchMessage,
               }
             : undefined
         }

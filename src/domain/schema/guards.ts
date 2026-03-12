@@ -9,6 +9,9 @@ import {
   PROTOCOL_MESSAGE_TYPES,
   PROTOCOL_REFERENCE_TYPES,
   PROTOCOL_STATUSES,
+  RUN_ADAPTERS,
+  RUN_STATUSES,
+  RUN_TRIGGER_SOURCES,
   PRIORITIES,
   RISK_CATEGORIES,
   TASK_STATUSES,
@@ -25,6 +28,9 @@ import {
   type ProtocolMessageType,
   type ProtocolReferenceType,
   type ProtocolStatus,
+  type RunAdapter,
+  type RunStatus,
+  type RunTriggerSource,
   type RiskCategory,
   type TaskStatus,
 } from "@/domain/schema/enums";
@@ -87,4 +93,16 @@ export function asAutonomyScope(value: string): AutonomyScope {
 
 export function asProtocolReferenceType(value: string): ProtocolReferenceType {
   return hasValue(PROTOCOL_REFERENCE_TYPES, value) ? value : "task";
+}
+
+export function asRunStatus(value: string): RunStatus {
+  return hasValue(RUN_STATUSES, value) ? value : "queued";
+}
+
+export function asRunAdapter(value: string): RunAdapter {
+  return hasValue(RUN_ADAPTERS, value) ? value : "acpx_codex";
+}
+
+export function asRunTriggerSource(value: string): RunTriggerSource {
+  return hasValue(RUN_TRIGGER_SOURCES, value) ? value : "manual_dispatch";
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Approval, CanonicalTransition, Flow, Handoff, LinkedGithubObject, Project, ProtocolMessage, ProtocolReference, Settings, Task } from "@/domain/schema";
+import type { Approval, CanonicalTransition, Flow, Handoff, LinkedGithubObject, Project, ProtocolMessage, ProtocolReference, Run, RunErrorPayload, RunInputPayload, RunResultPayload, Settings, Task } from "@/domain/schema";
 import {
   asApprovalStatus,
   asApprovalTargetType,
@@ -9,6 +9,9 @@ import {
   asHandoffStatus,
   asLaneType,
   asPriority,
+  asRunAdapter,
+  asRunStatus,
+  asRunTriggerSource,
   asProtocolMessageType,
   asProtocolReferenceType,
   asProtocolStatus,
@@ -17,6 +20,7 @@ import {
 } from "@/domain/schema";
 import { fromJson, getSqliteDb } from "@/server/db/sqlite";
 import { ensureMissionControlFoundation } from "@/server/domain/bootstrap";
+import { getActiveRunForFlow } from "@/server/domain/repository";
 import {
   appendEvent,
   eventForFlowCreated,
@@ -24,10 +28,16 @@ import {
   eventForHandoffSubmitted,
   eventForProtocolMessageEmitted,
   eventForProtocolMessageStatusChanged,
+  eventForRunCanceled,
+  eventForRunCompleted,
+  eventForRunCreated,
+  eventForRunFailed,
+  eventForRunStarted,
   eventForTaskCreated,
   newEvent,
 } from "@/server/domain/events";
 import { projectEvent } from "@/server/domain/projector";
+import { buildFlowExecutionPrompt } from "@/server/execution/prompt-builder";
 import { createGithubService } from "@/server/integrations/github/service";
 
 function mapTask(row: Record<string, unknown>): Task {
@@ -131,6 +141,36 @@ function mapProtocolMessage(row: Record<string, unknown>): ProtocolMessage {
   };
 }
 
+function mapRun(row: Record<string, unknown>): Run {
+  return {
+    id: String(row.id),
+    taskId: String(row.task_id),
+    flowId: String(row.flow_id),
+    status: asRunStatus(String(row.status)),
+    adapter: asRunAdapter(String(row.adapter)),
+    agent: String(row.agent),
+    requestedBy: String(row.requested_by),
+    approvedBy: row.approved_by ? String(row.approved_by) : undefined,
+    approvalId: row.approval_id ? String(row.approval_id) : undefined,
+    triggerSource: row.trigger_source ? asRunTriggerSource(String(row.trigger_source)) : undefined,
+    parentRunId: row.parent_run_id ? String(row.parent_run_id) : undefined,
+    inputPayload: fromJson<RunInputPayload>(row.input_payload_json as string, {
+      prompt: "",
+      flowTitle: "",
+      taskTitle: "",
+      taskObjective: "",
+      owner: "",
+      actor: "",
+    }),
+    resultPayload: fromJson<RunResultPayload | null>(row.result_payload_json as string | null, null) ?? undefined,
+    errorPayload: fromJson<RunErrorPayload | null>(row.error_payload_json as string | null, null) ?? undefined,
+    startedAt: row.started_at ? String(row.started_at) : undefined,
+    finishedAt: row.finished_at ? String(row.finished_at) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
 function saveEvent(event: ReturnType<typeof newEvent>) {
   appendEvent(event);
   projectEvent(event);
@@ -187,6 +227,24 @@ function loadHandoff(handoffId: string) {
     status: asHandoffStatus(String(row.status ?? "open")),
     createdAt: String(row.created_at),
   } satisfies Handoff;
+}
+
+function loadRun(runId: string) {
+  const db = getSqliteDb();
+  const row = db.prepare("SELECT * FROM runs WHERE id = ?").get(runId) as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+  return mapRun(row);
+}
+
+function loadApproval(approvalId: string) {
+  const db = getSqliteDb();
+  const row = db.prepare("SELECT * FROM approvals WHERE id = ?").get(approvalId) as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+  return mapApproval(row);
 }
 
 function loadProject(projectId: string) {
@@ -1261,5 +1319,269 @@ export function decideApproval(input: {
     taskId,
     approvalId: updated.id,
     changed: true,
+  };
+}
+
+export function createRun(input: {
+  taskId: string;
+  flowId: string;
+  adapter: string;
+  agent: string;
+  requestedBy: string;
+  approvedBy?: string;
+  approvalId?: string;
+  triggerSource?: string;
+  parentRunId?: string;
+  inputPayload: RunInputPayload;
+}) {
+  ensureMissionControlFoundation();
+  const task = loadTask(input.taskId);
+  const flow = loadFlow(input.flowId);
+  if (!task || !flow || flow.taskId !== task.id) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  const run: Run = {
+    id: randomUUID(),
+    taskId: input.taskId,
+    flowId: input.flowId,
+    status: "queued",
+    adapter: asRunAdapter(input.adapter),
+    agent: input.agent.trim(),
+    requestedBy: input.requestedBy.trim(),
+    approvedBy: input.approvedBy?.trim() || undefined,
+    approvalId: input.approvalId?.trim() || undefined,
+    triggerSource: input.triggerSource ? asRunTriggerSource(input.triggerSource) : undefined,
+    parentRunId: input.parentRunId?.trim() || undefined,
+    inputPayload: input.inputPayload,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  saveEvent(eventForRunCreated(run, input.requestedBy.trim()));
+  touchTask(run.taskId, input.requestedBy.trim());
+  return run;
+}
+
+export function markRunStarted(input: {
+  runId: string;
+  actor: string;
+}) {
+  ensureMissionControlFoundation();
+  const run = loadRun(input.runId);
+  if (!run) {
+    return null;
+  }
+  if (run.status !== "queued") {
+    return run;
+  }
+
+  const now = new Date().toISOString();
+  const updatedRun: Run = {
+    ...run,
+    status: "running",
+    startedAt: run.startedAt ?? now,
+    updatedAt: now,
+  };
+
+  saveEvent(eventForRunStarted(updatedRun, input.actor));
+  touchTask(updatedRun.taskId, input.actor);
+  return updatedRun;
+}
+
+export function markRunCompleted(input: {
+  runId: string;
+  actor: string;
+  resultPayload: RunResultPayload;
+}) {
+  ensureMissionControlFoundation();
+  const run = loadRun(input.runId);
+  if (!run) {
+    return null;
+  }
+  if (run.status === "completed" || run.status === "failed" || run.status === "canceled") {
+    return run;
+  }
+
+  const now = new Date().toISOString();
+  const updatedRun: Run = {
+    ...run,
+    status: "completed",
+    startedAt: run.startedAt ?? now,
+    finishedAt: now,
+    resultPayload: input.resultPayload,
+    errorPayload: undefined,
+    updatedAt: now,
+  };
+
+  saveEvent(eventForRunCompleted(updatedRun, input.actor));
+  touchTask(updatedRun.taskId, input.actor);
+  return updatedRun;
+}
+
+export function markRunFailed(input: {
+  runId: string;
+  actor: string;
+  errorPayload: RunErrorPayload;
+}) {
+  ensureMissionControlFoundation();
+  const run = loadRun(input.runId);
+  if (!run) {
+    return null;
+  }
+  if (run.status === "completed" || run.status === "failed" || run.status === "canceled") {
+    return run;
+  }
+
+  const now = new Date().toISOString();
+  const updatedRun: Run = {
+    ...run,
+    status: "failed",
+    startedAt: run.startedAt ?? now,
+    finishedAt: now,
+    errorPayload: input.errorPayload,
+    resultPayload: undefined,
+    updatedAt: now,
+  };
+
+  saveEvent(eventForRunFailed(updatedRun, input.actor));
+  touchTask(updatedRun.taskId, input.actor);
+  return updatedRun;
+}
+
+export function markRunCanceled(input: {
+  runId: string;
+  actor: string;
+  errorPayload?: RunErrorPayload;
+}) {
+  ensureMissionControlFoundation();
+  const run = loadRun(input.runId);
+  if (!run) {
+    return null;
+  }
+  if (run.status === "completed" || run.status === "failed" || run.status === "canceled") {
+    return run;
+  }
+
+  const now = new Date().toISOString();
+  const updatedRun: Run = {
+    ...run,
+    status: "canceled",
+    startedAt: run.startedAt,
+    finishedAt: now,
+    errorPayload: input.errorPayload ?? run.errorPayload,
+    updatedAt: now,
+  };
+
+  saveEvent(eventForRunCanceled(updatedRun, input.actor));
+  touchTask(updatedRun.taskId, input.actor);
+  return updatedRun;
+}
+
+export async function dispatchFlowRun(input: {
+  flowId: string;
+  adapter: string;
+  agent: string;
+  requestedBy: string;
+  approvalId?: string;
+  triggerSource?: string;
+  parentRunId?: string;
+}) {
+  ensureMissionControlFoundation();
+
+  const flow = loadFlow(input.flowId);
+  if (!flow) {
+    return {
+      ok: false as const,
+      error: "Flow not found.",
+    };
+  }
+
+  const task = loadTask(flow.taskId);
+  if (!task) {
+    return {
+      ok: false as const,
+      error: "Task not found for flow.",
+    };
+  }
+
+  const activeRun = getActiveRunForFlow(flow.id);
+  if (activeRun) {
+    return {
+      ok: false as const,
+      error: "An active run already exists for this flow.",
+    };
+  }
+
+  const approvalId = input.approvalId?.trim();
+  if (!approvalId) {
+    return {
+      ok: false as const,
+      error: "Dispatch requires an approved approval record.",
+    };
+  }
+
+  const approval = loadApproval(approvalId);
+  if (!approval) {
+    return {
+      ok: false as const,
+      error: "Approval not found.",
+    };
+  }
+
+  if (approval.status !== "approved") {
+    return {
+      ok: false as const,
+      error: "Approval is not approved.",
+    };
+  }
+
+  const approvalMatchesFlow =
+    (approval.targetType === "flow" && approval.targetId === flow.id) ||
+    (approval.targetType === "task" && approval.targetId === task.id);
+
+  if (!approvalMatchesFlow) {
+    return {
+      ok: false as const,
+      error: "Approval does not apply to this flow dispatch.",
+    };
+  }
+
+  const prompt = buildFlowExecutionPrompt({ task, flow });
+  const run = createRun({
+    taskId: task.id,
+    flowId: flow.id,
+    adapter: input.adapter,
+    agent: input.agent,
+    requestedBy: input.requestedBy,
+    approvedBy: approval.decisionBy,
+    approvalId: approval.id,
+    triggerSource: input.triggerSource,
+    parentRunId: input.parentRunId,
+    inputPayload: {
+      prompt,
+      flowTitle: flow.title,
+      flowObjective: flow.objective,
+      taskTitle: task.title,
+      taskObjective: task.objective,
+      owner: flow.owner,
+      actor: input.requestedBy,
+    },
+  });
+
+  if (!run) {
+    return {
+      ok: false as const,
+      error: "Run could not be created.",
+    };
+  }
+
+  const { dispatchRun } = await import("@/server/execution/dispatcher");
+  void dispatchRun(run.id);
+
+  return {
+    ok: true as const,
+    run,
   };
 }
