@@ -195,7 +195,13 @@ export function TaskDetailScreen({
         </Panel>
 
         <Panel>
-          <h3 className="mc-col-title">GitHub Links</h3>
+          <details className="mc-collapsible-section">
+            <summary className="mc-collapsible-summary">
+              <div>
+                <h3 className="mc-col-title">GitHub Links</h3>
+                <p className="mc-meta-line">Task and flow references, hidden by default.</p>
+              </div>
+            </summary>
           <form action={onCreateGithubIssue} className="mc-inline-form mc-stacked-form">
             <select name="scope" className="mc-filter-select" defaultValue="task">
               <option value="task">Task</option>
@@ -262,6 +268,7 @@ export function TaskDetailScreen({
               )}
             </div>
           ) : null}
+          </details>
         </Panel>
 
         <Panel>
@@ -434,7 +441,13 @@ export function TaskDetailScreen({
         </Panel>
 
         <Panel>
-          <h3 className="mc-col-title">Handoffs</h3>
+          <details className="mc-collapsible-section">
+            <summary className="mc-collapsible-summary">
+              <div>
+                <h3 className="mc-col-title">Handoffs</h3>
+                <p className="mc-meta-line">Cross-agent routing and handoff paperwork.</p>
+              </div>
+            </summary>
           <form action={onSubmitHandoff} className="mc-inline-form mc-stacked-form">
             <select name="from" className="mc-filter-select" defaultValue="giuseppe">
               {actorOptions.map((actor) => (
@@ -509,10 +522,17 @@ export function TaskDetailScreen({
               ))
             )}
           </div>
+          </details>
         </Panel>
 
         <Panel>
-          <h3 className="mc-col-title">Protocol Coordination</h3>
+          <details className="mc-collapsible-section">
+            <summary className="mc-collapsible-summary">
+              <div>
+                <h3 className="mc-col-title">Protocol Coordination</h3>
+                <p className="mc-meta-line">Escalations, blockers, and lifecycle routing.</p>
+              </div>
+            </summary>
           <form action={onEmitProtocolMessage} className="mc-inline-form mc-stacked-form">
             <select name="type" className="mc-filter-select" defaultValue="blocker_raise">
               {PROTOCOL_MESSAGE_TYPES.map((type) => (
@@ -603,10 +623,17 @@ export function TaskDetailScreen({
               ))
             )}
           </div>
+          </details>
         </Panel>
 
         <Panel>
-          <h3 className="mc-col-title">Lane Links</h3>
+          <details className="mc-collapsible-section">
+            <summary className="mc-collapsible-summary">
+              <div>
+                <h3 className="mc-col-title">Lane Links</h3>
+                <p className="mc-meta-line">External/session plumbing for this task.</p>
+              </div>
+            </summary>
           <form action={onLinkLane} className="mc-inline-form mc-stacked-form">
             <select name="laneType" className="mc-filter-select" defaultValue="openclaw_session">
               {LANE_TYPES.map((laneType) => (
@@ -634,6 +661,7 @@ export function TaskDetailScreen({
               ))
             )}
           </div>
+          </details>
         </Panel>
 
         <Panel>

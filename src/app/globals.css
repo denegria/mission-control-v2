@@ -784,6 +784,41 @@ body {
   background: linear-gradient(180deg, rgba(15, 19, 31, 0.94), rgba(10, 13, 21, 0.98));
 }
 
+.mc-collapsible-section {
+  display: block;
+}
+
+.mc-collapsible-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -2px 0 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mc-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mc-collapsible-summary::after {
+  content: "+";
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(129, 141, 170, 0.24);
+  border-radius: 999px;
+  color: #aab6cf;
+  background: rgba(14, 18, 28, 0.9);
+  flex: 0 0 auto;
+}
+
+.mc-collapsible-section[open] .mc-collapsible-summary::after {
+  content: "−";
+}
+
 .mc-meta-line {
   margin: 0 0 8px;
   color: #9aa7bf;
