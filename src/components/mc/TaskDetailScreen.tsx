@@ -152,7 +152,242 @@ export function TaskDetailScreen({
         </div>
       </section>
 
-      <div className="mc-detail-grid">
+      <div className="mc-detail-layout">
+        <div className="mc-detail-main">
+          <Panel>
+            <h3 className="mc-col-title">Flows</h3>
+            <form action={onCreateFlow} className="mc-inline-form mc-stacked-form">
+              <input name="title" className="mc-inline-input" placeholder="Flow title" required />
+              <select name="type" className="mc-filter-select" defaultValue="implementation">
+                {FLOW_TYPES.map((flowType) => (
+                  <option key={flowType} value={flowType}>
+                    {flowType}
+                  </option>
+                ))}
+              </select>
+              <select name="owner" className="mc-filter-select" defaultValue="senior-builder">
+                {actorOptions.map((actor) => (
+                  <option key={actor.id} value={actor.id}>
+                    {actor.label}
+                  </option>
+                ))}
+              </select>
+              <input name="objective" className="mc-inline-input" placeholder="Objective (optional)" />
+              <button className="mc-filter-pill" type="submit">
+                Create flow
+              </button>
+            </form>
+            {dispatchFeedback ? (
+              <p className="mc-meta-line" data-tone={dispatchFeedback.tone}>
+                {dispatchFeedback.message}
+              </p>
+            ) : null}
+            <div className="mc-task-stack">
+              {flows.map((flow) => {
+                const flowProtocolItems = protocolMessages.filter(
+                  (message) => message.flowId === flow.id && message.status !== "resolved",
+                );
+                const flowExceptions = flowProtocolItems.filter(
+                  (message) => message.type === "blocker_raise" || message.type === "escalation_raise",
+                );
+                const flowRuns = runs.filter((run) => run.flowId === flow.id);
+                const latestRun = flowRuns[0];
+                const recentRuns = flowRuns.slice(0, 3);
+                const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
+                const approvedApprovals = approvals.filter(
+                  (approval) =>
+                    approval.status === "approved" &&
+                    ((approval.targetType === "flow" && approval.targetId === flow.id) ||
+                      (approval.targetType === "task" && approval.targetId === task.id)),
+                );
+
+                return (
+                  <article key={flow.id} className="mc-task-card mc-flow-card">
+                    <div className="mc-flow-card-head">
+                      <div>
+                        <h4>{flow.title}</h4>
+                        <p className="mc-meta-line">{flow.objective ?? "No flow objective yet."}</p>
+                      </div>
+                      <div className="mc-flow-badges">
+                        <span className="mc-detail-chip">{flow.type}</span>
+                        <span className="mc-detail-chip mc-detail-chip-status">{prettyLabel(flow.status)}</span>
+                      </div>
+                    </div>
+                    <p>
+                      {getActorLabel(flow.owner, settings)}
+                      {flowExceptions.length > 0
+                        ? ` • ${flowExceptions.length} active protocol exception${flowExceptions.length === 1 ? "" : "s"}`
+                        : flowProtocolItems.length > 0
+                          ? ` • ${flowProtocolItems.length} active protocol item${flowProtocolItems.length === 1 ? "" : "s"}`
+                          : " • clear lane"}
+                    </p>
+                    {latestRun ? (
+                      <div className="mc-run-block">
+                        <p className="mc-meta-line">
+                          Latest run • {prettyLabel(latestRun.status)} via {fmtRunAdapter(latestRun.adapter)}
+                          {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
+                        </p>
+                        {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
+                        {latestRun.resultPayload?.finalOutput ? <pre className="mc-run-output">{latestRun.resultPayload.finalOutput}</pre> : null}
+                        {latestRun.errorPayload?.message ? <p className="mc-run-error">{latestRun.errorPayload.message}</p> : null}
+                        {recentRuns.length > 1 ? (
+                          <div>
+                            <p className="mc-meta-line">Recent run history</p>
+                            <ul className="mc-activity-feed mc-activity-feed-compact">
+                              {recentRuns.map((run) => (
+                                <li key={run.id}>
+                                  {prettyLabel(run.status)} via {fmtRunAdapter(run.adapter)}
+                                  {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p>No runs yet.</p>
+                    )}
+                    {flow.summary ? <p className="mc-flow-summary">{flow.summary}</p> : null}
+                    <details className="mc-inline-collapsible">
+                      <summary className="mc-inline-collapsible-summary">Manage flow</summary>
+                      <div className="mc-inline-collapsible-body">
+                        <form action={onUpdateFlowStatus} className="mc-inline-form">
+                          <input type="hidden" name="flowId" value={flow.id} />
+                          <select name="status" className="mc-filter-select" defaultValue={flow.status}>
+                            {FLOW_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status.replaceAll("_", " ")}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="mc-filter-pill" type="submit">
+                            Update status
+                          </button>
+                        </form>
+                        <form action={onUpdateFlowOwner} className="mc-inline-form">
+                          <input type="hidden" name="flowId" value={flow.id} />
+                          <select name="owner" className="mc-filter-select" defaultValue={flow.owner}>
+                            {actorOptions.map((actor) => (
+                              <option key={actor.id} value={actor.id}>
+                                {actor.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="mc-filter-pill" type="submit">
+                            Update owner
+                          </button>
+                        </form>
+                        <div>
+                          <p className="mc-meta-line">Execution lane</p>
+                          <p className="mc-meta-line">
+                            {approvedApprovals.length > 0
+                              ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available for dispatch`
+                              : "Dispatch unavailable until an approval is approved"}
+                          </p>
+                        </div>
+                        <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
+                          <input type="hidden" name="flowId" value={flow.id} />
+                          <select
+                            name="approvalId"
+                            className="mc-filter-select"
+                            defaultValue={approvedApprovals[0]?.id ?? ""}
+                            disabled={approvedApprovals.length === 0}
+                          >
+                            {approvedApprovals.length === 0 ? <option value="">Select approved approval</option> : null}
+                            {approvedApprovals.map((approval) => (
+                              <option key={approval.id} value={approval.id}>
+                                {approval.targetType === "flow" ? "Flow" : "Task"} approval • {approval.requestedAction}
+                              </option>
+                            ))}
+                          </select>
+                          <select name="adapter" className="mc-filter-select" defaultValue="native_acp_codex" disabled={Boolean(activeRun)}>
+                            {RUN_ADAPTERS.map((adapter) => (
+                              <option key={adapter} value={adapter}>
+                                {fmtRunAdapter(adapter)}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="mc-filter-pill" type="submit" disabled={approvedApprovals.length === 0 || Boolean(activeRun)}>
+                            {activeRun ? `Run ${activeRun.status}` : "Dispatch flow run"}
+                          </button>
+                        </form>
+                      </div>
+                    </details>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel>
+            <h3 className="mc-col-title">Acceptance Criteria</h3>
+            <ul className="mc-activity-feed">
+              {(task.acceptanceCriteria ?? []).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </Panel>
+
+          <Panel>
+            <h3 className="mc-col-title">Approvals</h3>
+            <form action={onRequestApproval} className="mc-inline-form mc-stacked-form">
+              <input name="requestedAction" className="mc-inline-input" placeholder="Requested action" required />
+              <select name="flowId" className="mc-filter-select" defaultValue="">
+                <option value="">Task scoped</option>
+                {flows.map((flow) => (
+                  <option key={flow.id} value={flow.id}>
+                    {flow.title}
+                  </option>
+                ))}
+              </select>
+              <select name="riskCategory" className="mc-filter-select" defaultValue="high">
+                {RISK_CATEGORIES.map((risk) => (
+                  <option key={risk} value={risk}>
+                    {risk}
+                  </option>
+                ))}
+              </select>
+              <input name="summary" className="mc-inline-input" placeholder="Summary (optional)" />
+              <button className="mc-filter-pill" type="submit">
+                Request approval
+              </button>
+            </form>
+            <div className="mc-task-stack mc-approval-grid">
+              {approvals.length === 0 ? (
+                <div className="mc-empty-col">No approvals</div>
+              ) : (
+                approvals.map((approval) => (
+                  <article key={approval.id} className="mc-task-card mc-approval-card">
+                    <div className="mc-flow-card-head">
+                      <h4>{approval.requestedAction}</h4>
+                      <span className={`mc-detail-chip mc-approval-chip mc-approval-chip-${approval.status.replaceAll("_", "-")}`}>
+                        {prettyLabel(approval.status)}
+                      </span>
+                    </div>
+                    <p>{approval.riskCategory} risk</p>
+                    <p>Requested by {getActorLabel(approval.requestedBy, settings)}</p>
+                    {approval.summary ? <p className="mc-flow-summary">{approval.summary}</p> : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </Panel>
+
+          <Panel>
+            <h3 className="mc-col-title">Timeline</h3>
+            <ul className="mc-activity-feed mc-timeline-feed">
+              {timeline.map((event) => (
+                <li key={event.id}>
+                  <strong>{event.summary}</strong>
+                  <br />
+                  {getActorLabel(event.actor, settings)} • {fmtDate(event.createdAt)}
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </div>
+
+        <div className="mc-detail-rail">
         <Panel className="mc-panel-emphasis">
           <h3 className="mc-col-title">Task Controls</h3>
           <form action={onUpdateTaskStatus} className="mc-inline-form">
@@ -271,174 +506,6 @@ export function TaskDetailScreen({
           </details>
         </Panel>
 
-        <Panel>
-          <h3 className="mc-col-title">Acceptance Criteria</h3>
-          <ul className="mc-activity-feed">
-            {(task.acceptanceCriteria ?? []).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </Panel>
-
-        <Panel>
-          <h3 className="mc-col-title">Flows</h3>
-          <form action={onCreateFlow} className="mc-inline-form mc-stacked-form">
-            <input name="title" className="mc-inline-input" placeholder="Flow title" required />
-            <select name="type" className="mc-filter-select" defaultValue="implementation">
-              {FLOW_TYPES.map((flowType) => (
-                <option key={flowType} value={flowType}>
-                  {flowType}
-                </option>
-              ))}
-            </select>
-            <select name="owner" className="mc-filter-select" defaultValue="senior-builder">
-              {actorOptions.map((actor) => (
-                <option key={actor.id} value={actor.id}>
-                  {actor.label}
-                </option>
-              ))}
-            </select>
-            <input name="objective" className="mc-inline-input" placeholder="Objective (optional)" />
-            <button className="mc-filter-pill" type="submit">
-              Create flow
-            </button>
-          </form>
-          {dispatchFeedback ? (
-            <p className="mc-meta-line" data-tone={dispatchFeedback.tone}>
-              {dispatchFeedback.message}
-            </p>
-          ) : null}
-          <div className="mc-task-stack">
-            {flows.map((flow) => {
-              const flowProtocolItems = protocolMessages.filter(
-                (message) => message.flowId === flow.id && message.status !== "resolved",
-              );
-              const flowExceptions = flowProtocolItems.filter(
-                (message) => message.type === "blocker_raise" || message.type === "escalation_raise",
-              );
-              const flowRuns = runs.filter((run) => run.flowId === flow.id);
-              const latestRun = flowRuns[0];
-              const recentRuns = flowRuns.slice(0, 3);
-              const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
-              const approvedApprovals = approvals.filter(
-                (approval) =>
-                  approval.status === "approved" &&
-                  ((approval.targetType === "flow" && approval.targetId === flow.id) ||
-                    (approval.targetType === "task" && approval.targetId === task.id)),
-              );
-
-              return (
-                <article key={flow.id} className="mc-task-card mc-flow-card">
-                  <div className="mc-flow-card-head">
-                    <div>
-                      <h4>{flow.title}</h4>
-                      <p className="mc-meta-line">{flow.objective ?? "No flow objective yet."}</p>
-                    </div>
-                    <div className="mc-flow-badges">
-                      <span className="mc-detail-chip">{flow.type}</span>
-                      <span className="mc-detail-chip mc-detail-chip-status">{prettyLabel(flow.status)}</span>
-                    </div>
-                  </div>
-                  <p>
-                    {getActorLabel(flow.owner, settings)}
-                    {flowExceptions.length > 0
-                      ? ` • ${flowExceptions.length} active protocol exception${flowExceptions.length === 1 ? "" : "s"}`
-                      : flowProtocolItems.length > 0
-                        ? ` • ${flowProtocolItems.length} active protocol item${flowProtocolItems.length === 1 ? "" : "s"}`
-                        : " • clear lane"}
-                  </p>
-                  <form action={onUpdateFlowStatus} className="mc-inline-form">
-                    <input type="hidden" name="flowId" value={flow.id} />
-                    <select name="status" className="mc-filter-select" defaultValue={flow.status}>
-                      {FLOW_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {status.replaceAll("_", " ")}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="mc-filter-pill" type="submit">
-                      Update status
-                    </button>
-                  </form>
-                  <form action={onUpdateFlowOwner} className="mc-inline-form">
-                    <input type="hidden" name="flowId" value={flow.id} />
-                    <select name="owner" className="mc-filter-select" defaultValue={flow.owner}>
-                      {actorOptions.map((actor) => (
-                        <option key={actor.id} value={actor.id}>
-                          {actor.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="mc-filter-pill" type="submit">
-                      Update owner
-                    </button>
-                  </form>
-                  <div>
-                    <p className="mc-meta-line">Execution lane</p>
-                    <p className="mc-meta-line">
-                      {approvedApprovals.length > 0
-                        ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available for dispatch`
-                        : "Dispatch unavailable until an approval is approved"}
-                    </p>
-                  </div>
-                  <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
-                    <input type="hidden" name="flowId" value={flow.id} />
-                    <select
-                      name="approvalId"
-                      className="mc-filter-select"
-                      defaultValue={approvedApprovals[0]?.id ?? ""}
-                      disabled={approvedApprovals.length === 0}
-                    >
-                      {approvedApprovals.length === 0 ? <option value="">Select approved approval</option> : null}
-                      {approvedApprovals.map((approval) => (
-                        <option key={approval.id} value={approval.id}>
-                          {approval.targetType === "flow" ? "Flow" : "Task"} approval • {approval.requestedAction}
-                        </option>
-                      ))}
-                    </select>
-                    <select name="adapter" className="mc-filter-select" defaultValue="native_acp_codex" disabled={Boolean(activeRun)}>
-                      {RUN_ADAPTERS.map((adapter) => (
-                        <option key={adapter} value={adapter}>
-                          {fmtRunAdapter(adapter)}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="mc-filter-pill" type="submit" disabled={approvedApprovals.length === 0 || Boolean(activeRun)}>
-                      {activeRun ? `Run ${activeRun.status}` : "Dispatch flow run"}
-                    </button>
-                  </form>
-                  {latestRun ? (
-                    <div className="mc-run-block">
-                      <p className="mc-meta-line">
-                        Latest run • {prettyLabel(latestRun.status)} via {fmtRunAdapter(latestRun.adapter)}
-                        {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
-                      </p>
-                      {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
-                      {latestRun.resultPayload?.finalOutput ? <pre className="mc-run-output">{latestRun.resultPayload.finalOutput}</pre> : null}
-                      {latestRun.errorPayload?.message ? <p className="mc-run-error">{latestRun.errorPayload.message}</p> : null}
-                      {recentRuns.length > 1 ? (
-                        <div>
-                          <p className="mc-meta-line">Recent run history</p>
-                          <ul className="mc-activity-feed mc-activity-feed-compact">
-                            {recentRuns.map((run) => (
-                              <li key={run.id}>
-                                {prettyLabel(run.status)} via {fmtRunAdapter(run.adapter)}
-                                {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p>No runs yet.</p>
-                  )}
-                  {flow.summary ? <p className="mc-flow-summary">{flow.summary}</p> : null}
-                </article>
-              );
-            })}
-          </div>
-        </Panel>
 
         <Panel>
           <details className="mc-collapsible-section">
@@ -664,59 +731,7 @@ export function TaskDetailScreen({
           </details>
         </Panel>
 
-        <Panel>
-          <h3 className="mc-col-title">Approvals</h3>
-          <form action={onRequestApproval} className="mc-inline-form mc-stacked-form">
-            <input name="requestedAction" className="mc-inline-input" placeholder="Requested action" required />
-            <select name="flowId" className="mc-filter-select" defaultValue="">
-              <option value="">Task scoped</option>
-              {flows.map((flow) => (
-                <option key={flow.id} value={flow.id}>
-                  {flow.title}
-                </option>
-              ))}
-            </select>
-            <select name="riskCategory" className="mc-filter-select" defaultValue="high">
-              {RISK_CATEGORIES.map((risk) => (
-                <option key={risk} value={risk}>
-                  {risk}
-                </option>
-              ))}
-            </select>
-            <input name="summary" className="mc-inline-input" placeholder="Summary (optional)" />
-            <button className="mc-filter-pill" type="submit">
-              Request approval
-            </button>
-          </form>
-          <div className="mc-task-stack">
-            {approvals.length === 0 ? (
-              <div className="mc-empty-col">No approvals</div>
-            ) : (
-              approvals.map((approval) => (
-                <article key={approval.id} className="mc-task-card">
-                  <h4>{approval.requestedAction}</h4>
-                  <p>
-                    {approval.riskCategory} risk • {approval.status}
-                  </p>
-                  <p>Requested by {getActorLabel(approval.requestedBy, settings)}</p>
-                </article>
-              ))
-            )}
-          </div>
-        </Panel>
-
-        <Panel>
-          <h3 className="mc-col-title">Timeline</h3>
-          <ul className="mc-activity-feed">
-            {timeline.map((event) => (
-              <li key={event.id}>
-                <strong>{event.summary}</strong>
-                <br />
-                {getActorLabel(event.actor, settings)} • {fmtDate(event.createdAt)}
-              </li>
-            ))}
-          </ul>
-        </Panel>
+        </div>
       </div>
     </div>
   );
