@@ -29,6 +29,23 @@ export function buildFlowExecutionPrompt(input: { task: Task; flow: Flow }) {
     block("Flow inputs", flow.inputs),
     block("Flow expected outputs", flow.outputs),
     block("Task tags", task.tags),
+    "",
+    "Execution rules:",
+    "- Do the requested work and keep the response concise but concrete.",
+    "- If you changed code/config/docs, say exactly what changed.",
+    "- If something is blocked, say exactly what is blocked and why.",
+    "- End your response with a machine-readable closure block using this exact format:",
+    "",
+    "CLOSURE:",
+    "outcome: <done|approved|review|blocked>",
+    "summary: <one short sentence>",
+    "",
+    "Closure guidance:",
+    "- Use 'done' when the flow work is complete and ready for review.",
+    "- Use 'approved' only when the review/approval outcome is explicitly approved.",
+    "- Use 'review' when work is complete but needs human or QA review.",
+    "- Use 'blocked' when the flow cannot proceed.",
+    "- Always include the CLOSURE block as the final lines of your response.",
   ]
     .filter((part): part is string => Boolean(part))
     .join("\n");
