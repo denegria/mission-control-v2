@@ -100,7 +100,7 @@ export function asRunStatus(value: string): RunStatus {
 }
 
 export function asRunAdapter(value: string): RunAdapter {
-  return hasValue(RUN_ADAPTERS, value) ? value : "acpx_codex";
+  return hasValue(RUN_ADAPTERS, value) ? value : "native_acp_codex";
 }
 
 export function asRunTriggerSource(value: string): RunTriggerSource {
