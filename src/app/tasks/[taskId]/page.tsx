@@ -25,6 +25,7 @@ import {
 } from "@/server/domain/commands";
 import { getSettings, getTaskDetail, listProjects } from "@/server/domain/repository";
 import { getActorOptions, getDefaultOperatorId } from "@/lib/actors";
+import { getExecutionPlan } from "@/lib/runtime-routing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -369,23 +370,30 @@ export default async function TaskDetailPage({
     "use server";
 
     const flowId = String(formData.get("flowId") ?? "").trim();
-    const adapter = String(formData.get("adapter") ?? "").trim();
+    const requestedAdapter = String(formData.get("adapter") ?? "").trim();
     const approvalId = String(formData.get("approvalId") ?? "").trim();
     const retryMode = String(formData.get("retryMode") ?? "").trim();
 
-    if (!flowId || !RUN_ADAPTERS.includes(adapter as (typeof RUN_ADAPTERS)[number]) || !approvalId) {
+    if (!flowId || !approvalId) {
       const params = new URLSearchParams({
         dispatchStatus: "error",
-        dispatchMessage: "Flow dispatch requires a valid adapter and an approved approval.",
+        dispatchMessage: "Flow dispatch requires an approved approval.",
       });
       redirect(`/tasks/${taskId}?${params.toString()}`);
     }
 
-    const agent = adapter === "acpx_gemini" ? "gemini" : "codex";
+    const detail = getTaskDetail(taskId);
+    const flow = detail?.flows.find((item) => item.id === flowId);
+    const plan = getExecutionPlan({
+      actor: flow?.owner,
+      settings,
+      requestedAdapter: requestedAdapter && RUN_ADAPTERS.includes(requestedAdapter as (typeof RUN_ADAPTERS)[number]) ? requestedAdapter : undefined,
+    });
+
     const result = await dispatchFlowRun({
       flowId,
-      adapter,
-      agent,
+      adapter: plan.adapter,
+      agent: plan.agent,
       approvalId,
       requestedBy: actorId,
       triggerSource: retryMode === "retry" ? "retry" : "manual_dispatch",
