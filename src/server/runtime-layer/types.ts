@@ -1,4 +1,4 @@
-export type RuntimeWorkerAgent = "codex";
+export type RuntimeWorkerAgent = "codex" | "gemini";
 
 export type NativeAcpRunRequest = {
   runId: string;

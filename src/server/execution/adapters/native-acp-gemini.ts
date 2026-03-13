@@ -1,0 +1,43 @@
+import type { ExecutionAdapter, ExecutionAdapterContext } from "@/server/execution/adapters/types";
+import { runNativeAcp } from "@/server/runtime-layer/native-acp";
+
+export const nativeAcpGeminiAdapter: ExecutionAdapter = {
+  async execute(context: ExecutionAdapterContext) {
+    const result = await runNativeAcp({
+      runId: context.run.id,
+      flowId: context.run.flowId,
+      taskId: context.run.taskId,
+      agent: "gemini",
+      prompt: context.run.inputPayload.prompt,
+      resumeSessionId: context.run.workerLink?.resumeSessionId,
+      resumeSessionKey: context.run.workerLink?.sessionKey,
+    });
+
+    if (result.ok) {
+      return {
+        ok: true,
+        finalOutput: result.finalOutput,
+        summary: result.summary,
+        rawOutput: result.rawOutput,
+        workerLink: {
+          sessionKey: result.sessionKey,
+          sessionId: result.sessionId,
+          resumeSessionId: result.sessionId ?? context.run.workerLink?.resumeSessionId,
+        },
+      };
+    }
+
+    return {
+      ok: false,
+      message: result.error.message,
+      code: result.error.code,
+      retryable: result.error.retryable,
+      rawOutput: result.error.rawOutput,
+      workerLink: {
+        sessionKey: result.sessionKey,
+        sessionId: result.sessionId,
+        resumeSessionId: result.sessionId ?? context.run.workerLink?.resumeSessionId,
+      },
+    };
+  },
+};
