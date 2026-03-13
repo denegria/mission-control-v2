@@ -13,6 +13,8 @@ export class RuntimeLayerClientError extends Error {
   }
 }
 
+const DEFAULT_SESSION_KEY = "agent:main:main";
+
 function buildHeaders(config: RuntimeLayerConfig, contentLength?: number) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -25,6 +27,8 @@ function buildHeaders(config: RuntimeLayerConfig, contentLength?: number) {
   if (config.gatewayToken) {
     headers.Authorization = `Bearer ${config.gatewayToken}`;
   }
+
+  headers["x-openclaw-session-key"] = DEFAULT_SESSION_KEY;
 
   return headers;
 }

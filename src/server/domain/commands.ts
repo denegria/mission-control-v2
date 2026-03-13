@@ -1572,10 +1572,10 @@ export async function dispatchFlowRun(input: {
   }
 
   const { dispatchRun } = await import("@/server/execution/dispatcher");
-  void dispatchRun(run.id);
+  const dispatchedRun = input.adapter === "native_acp_codex" ? await dispatchRun(run.id) : (void dispatchRun(run.id), run);
 
   return {
     ok: true as const,
-    run,
+    run: dispatchedRun ?? run,
   };
 }

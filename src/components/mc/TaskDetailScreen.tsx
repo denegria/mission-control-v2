@@ -43,7 +43,7 @@ function fmtCanonicalTransition(transition?: ProtocolMessage["canonicalTransitio
 }
 
 function fmtRunAdapter(adapter: Run["adapter"]) {
-  return adapter.replace("acpx_", "");
+  return adapter.replace("native_acp_", "native acp ").replace("acpx_", "");
 }
 
 export function TaskDetailScreen({
@@ -384,7 +384,7 @@ export function TaskDetailScreen({
                         </option>
                       ))}
                     </select>
-                    <select name="adapter" className="mc-filter-select" defaultValue="acpx_codex" disabled={Boolean(activeRun)}>
+                    <select name="adapter" className="mc-filter-select" defaultValue="native_acp_codex" disabled={Boolean(activeRun)}>
                       {RUN_ADAPTERS.map((adapter) => (
                         <option key={adapter} value={adapter}>
                           {fmtRunAdapter(adapter)}

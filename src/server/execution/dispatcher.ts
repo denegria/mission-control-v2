@@ -2,12 +2,15 @@ import { getRun, getTaskDetail } from "@/server/domain/repository";
 import type { ExecutionAdapter } from "@/server/execution/adapters/types";
 import { acpxCodexAdapter } from "@/server/execution/adapters/acpx-codex";
 import { acpxGeminiAdapter } from "@/server/execution/adapters/acpx-gemini";
+import { nativeAcpCodexAdapter } from "@/server/execution/adapters/native-acp-codex";
 import { markRunCompleted, markRunFailed, markRunStarted } from "@/server/domain/commands";
 
 function resolveAdapter(adapter: string): ExecutionAdapter | null {
   switch (adapter) {
     case "acpx_codex":
       return acpxCodexAdapter;
+    case "native_acp_codex":
+      return nativeAcpCodexAdapter;
     case "acpx_gemini":
       return acpxGeminiAdapter;
     default:

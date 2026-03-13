@@ -42,6 +42,11 @@ export type GatewayToolInvokeSuccess<T> = {
   result: T;
 };
 
+export type GatewayToolInvokeEnvelope<T> = {
+  content?: Array<{ type?: string; text?: string }>;
+  details?: T;
+};
+
 export type GatewayToolInvokeFailure = {
   ok: false;
   error: {
