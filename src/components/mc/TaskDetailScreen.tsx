@@ -328,63 +328,6 @@ export function TaskDetailScreen({
             </ul>
           </Panel>
 
-          <Panel>
-            <h3 className="mc-col-title">Approvals</h3>
-            <form action={onRequestApproval} className="mc-inline-form mc-stacked-form">
-              <input name="requestedAction" className="mc-inline-input" placeholder="Requested action" required />
-              <select name="flowId" className="mc-filter-select" defaultValue="">
-                <option value="">Task scoped</option>
-                {flows.map((flow) => (
-                  <option key={flow.id} value={flow.id}>
-                    {flow.title}
-                  </option>
-                ))}
-              </select>
-              <select name="riskCategory" className="mc-filter-select" defaultValue="high">
-                {RISK_CATEGORIES.map((risk) => (
-                  <option key={risk} value={risk}>
-                    {risk}
-                  </option>
-                ))}
-              </select>
-              <input name="summary" className="mc-inline-input" placeholder="Summary (optional)" />
-              <button className="mc-filter-pill" type="submit">
-                Request approval
-              </button>
-            </form>
-            <div className="mc-task-stack mc-approval-grid">
-              {approvals.length === 0 ? (
-                <div className="mc-empty-col">No approvals</div>
-              ) : (
-                approvals.map((approval) => (
-                  <article key={approval.id} className="mc-task-card mc-approval-card">
-                    <div className="mc-flow-card-head">
-                      <h4>{approval.requestedAction}</h4>
-                      <span className={`mc-detail-chip mc-approval-chip mc-approval-chip-${approval.status.replaceAll("_", "-")}`}>
-                        {prettyLabel(approval.status)}
-                      </span>
-                    </div>
-                    <p>{approval.riskCategory} risk</p>
-                    <p>Requested by {getActorLabel(approval.requestedBy, settings)}</p>
-                    {approval.summary ? <p className="mc-flow-summary">{approval.summary}</p> : null}
-                  </article>
-                ))
-              )}
-            </div>
-          </Panel>
-
-          <Panel>
-            <h3 className="mc-col-title">Timeline</h3>
-            <ul className="mc-activity-feed mc-timeline-feed">
-              {timeline.map((event) => (
-                <li key={event.id}>
-                  <strong>{event.summary}</strong>
-                  <br />
-                  {getActorLabel(event.actor, settings)} • {fmtDate(event.createdAt)}
-                </li>
-              ))}
-            </ul>
-          </Panel>
         </div>
 
         <div className="mc-detail-rail">
@@ -691,6 +634,70 @@ export function TaskDetailScreen({
             )}
           </div>
           </details>
+        </Panel>
+
+        <Panel>
+          <h3 className="mc-col-title">Approvals</h3>
+          <form action={onRequestApproval} className="mc-inline-form mc-stacked-form">
+            <input name="requestedAction" className="mc-inline-input" placeholder="Requested action" required />
+            <select name="flowId" className="mc-filter-select" defaultValue="">
+              <option value="">Task scoped</option>
+              {flows.map((flow) => (
+                <option key={flow.id} value={flow.id}>
+                  {flow.title}
+                </option>
+              ))}
+            </select>
+            <select name="riskCategory" className="mc-filter-select" defaultValue="high">
+              {RISK_CATEGORIES.map((risk) => (
+                <option key={risk} value={risk}>
+                  {risk}
+                </option>
+              ))}
+            </select>
+            <input name="summary" className="mc-inline-input" placeholder="Summary (optional)" />
+            <button className="mc-filter-pill" type="submit">
+              Request approval
+            </button>
+          </form>
+          <div className="mc-task-stack mc-approval-grid">
+            {approvals.length === 0 ? (
+              <div className="mc-empty-col">No approvals</div>
+            ) : (
+              approvals.map((approval) => (
+                <article key={approval.id} className="mc-task-card mc-approval-card">
+                  <div className="mc-flow-card-head">
+                    <h4>{approval.requestedAction}</h4>
+                    <span className={`mc-detail-chip mc-approval-chip mc-approval-chip-${approval.status.replaceAll("_", "-")}`}>
+                      {prettyLabel(approval.status)}
+                    </span>
+                  </div>
+                  <p>{approval.riskCategory} risk</p>
+                  <p>Requested by {getActorLabel(approval.requestedBy, settings)}</p>
+                  {approval.summary ? <p className="mc-flow-summary">{approval.summary}</p> : null}
+                </article>
+              ))
+            )}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="mc-section-head">
+            <div>
+              <h3 className="mc-col-title">Timeline</h3>
+              <p className="mc-meta-line">Latest 5 events visible; scroll for older history.</p>
+            </div>
+            <span className="mc-detail-chip">{timeline.length} events</span>
+          </div>
+          <ul className="mc-activity-feed mc-timeline-feed">
+            {timeline.map((event) => (
+              <li key={event.id}>
+                <strong>{event.summary}</strong>
+                <br />
+                {getActorLabel(event.actor, settings)} • {fmtDate(event.createdAt)}
+              </li>
+            ))}
+          </ul>
         </Panel>
 
         <Panel>

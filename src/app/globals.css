@@ -406,13 +406,18 @@ body {
 }
 
 .mc-timeline-feed {
-  max-height: 360px;
+  max-height: 280px;
   overflow-y: auto;
-  padding-right: 6px;
+  padding: 0 8px 0 0;
+  mask-image: linear-gradient(to bottom, black 0%, black 84%, transparent 100%);
 }
 
-.mc-timeline-feed li:nth-child(n + 6) {
-  margin-top: 0;
+.mc-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
 }
 
 .mc-task-link {
@@ -808,10 +813,10 @@ body {
 }
 
 .mc-task-hero-copy p:last-child {
-  margin: 8px 0 0;
-  max-width: 70ch;
+  margin: 10px 0 0;
+  max-width: 64ch;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: #a9b4cb;
 }
 
@@ -819,7 +824,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 6px;
 }
 
 .mc-detail-chip {
@@ -954,7 +960,7 @@ textarea.mc-inline-input {
 .mc-run-output {
   margin: 8px 0 0;
   padding: 12px;
-  max-height: 280px;
+  max-height: 180px;
   overflow: auto;
   border: 1px solid rgba(128, 141, 171, 0.18);
   border-radius: 10px;
