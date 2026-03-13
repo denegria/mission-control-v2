@@ -39,14 +39,14 @@ export function getExecutionPlan(input: {
 
   const family: RuntimeFamily = geminiFamily ? "gemini" : "openai";
   const allowedAdapters: RunAdapter[] = geminiFamily
-    ? ["acpx_gemini"]
+    ? ["native_acp_gemini"]
     : ["native_acp_codex", "acpx_codex"];
 
-  const preferredAdapter: RunAdapter = geminiFamily ? "acpx_gemini" : "native_acp_codex";
+  const preferredAdapter: RunAdapter = geminiFamily ? "native_acp_gemini" : "native_acp_codex";
   const requestedAdapter = input.requestedAdapter?.trim() as RunAdapter | undefined;
   const adapter = requestedAdapter && allowedAdapters.includes(requestedAdapter) ? requestedAdapter : preferredAdapter;
 
-  if (adapter === "acpx_gemini") {
+  if (adapter === "native_acp_gemini") {
     return {
       actorLabel,
       family,
@@ -54,7 +54,20 @@ export function getExecutionPlan(input: {
       adapter,
       allowedAdapters,
       preferredAdapter,
-      transportLabel: "session",
+      transportLabel: "ACP",
+      runtimeLabel: "Gemini",
+    };
+  }
+
+  if (adapter === "acpx_gemini") {
+    return {
+      actorLabel,
+      family,
+      agent: "gemini",
+      adapter: "native_acp_gemini",
+      allowedAdapters,
+      preferredAdapter,
+      transportLabel: "ACP",
       runtimeLabel: "Gemini",
     };
   }
