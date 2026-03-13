@@ -5,17 +5,13 @@ import { Panel } from "@/components/mc/AppShell";
 import { decideApproval, updateProtocolMessageStatus } from "@/server/domain/commands";
 import { getSettings, listActiveProtocolExceptions, listPendingApprovals } from "@/server/domain/repository";
 import { getActorLabel, getDefaultOperatorId } from "@/lib/actors";
+import { fmtProductDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fmtProductDateTime(iso);
 }
 
 function fmtCanonicalTransition(transition: { type: string; transition: string } | undefined) {

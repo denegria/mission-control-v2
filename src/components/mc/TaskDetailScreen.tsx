@@ -25,14 +25,10 @@ import { Panel } from "@/components/mc/AppShell";
 import type { ActorOption } from "@/lib/actors";
 import { getActorLabel } from "@/lib/actors";
 import { getExecutionPlan } from "@/lib/runtime-routing";
+import { fmtProductDateTime } from "@/lib/time";
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fmtProductDateTime(iso);
 }
 
 function fmtCanonicalTransition(transition?: ProtocolMessage["canonicalTransition"]) {
