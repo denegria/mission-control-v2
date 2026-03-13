@@ -228,7 +228,12 @@ export function TaskDetailScreen({
                           {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
                         </p>
                         {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
-                        {latestRun.resultPayload?.finalOutput ? <pre className="mc-run-output">{latestRun.resultPayload.finalOutput}</pre> : null}
+                        {latestRun.resultPayload?.finalOutput ? (
+                        <details className="mc-inline-collapsible mc-output-collapsible">
+                          <summary className="mc-inline-collapsible-summary">Run output preview</summary>
+                          <pre className="mc-run-output">{latestRun.resultPayload.finalOutput}</pre>
+                        </details>
+                      ) : null}
                         {latestRun.errorPayload?.message ? <p className="mc-run-error">{latestRun.errorPayload.message}</p> : null}
                         {recentRuns.length > 1 ? (
                           <div>
