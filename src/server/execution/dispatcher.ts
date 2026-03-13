@@ -72,6 +72,7 @@ export async function dispatchRun(runId: string) {
     return markRunCompleted({
       runId,
       actor: "dispatcher",
+      workerLink: result.workerLink,
       resultPayload: {
         finalOutput: result.finalOutput,
         summary: result.summary,
@@ -83,6 +84,7 @@ export async function dispatchRun(runId: string) {
   return markRunFailed({
     runId,
     actor: "dispatcher",
+    workerLink: result.workerLink,
     errorPayload: {
       message: result.message,
       code: result.code,

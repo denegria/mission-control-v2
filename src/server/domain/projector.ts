@@ -215,8 +215,9 @@ function upsertRun(run: Run) {
     `
       INSERT INTO runs (
         id, task_id, flow_id, status, adapter, agent, requested_by, approved_by, approval_id, trigger_source, parent_run_id,
+        worker_session_key, worker_session_id, worker_resume_session_id,
         input_payload_json, result_payload_json, error_payload_json, started_at, finished_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         task_id=excluded.task_id,
         flow_id=excluded.flow_id,
@@ -228,6 +229,9 @@ function upsertRun(run: Run) {
         approval_id=excluded.approval_id,
         trigger_source=excluded.trigger_source,
         parent_run_id=excluded.parent_run_id,
+        worker_session_key=excluded.worker_session_key,
+        worker_session_id=excluded.worker_session_id,
+        worker_resume_session_id=excluded.worker_resume_session_id,
         input_payload_json=excluded.input_payload_json,
         result_payload_json=excluded.result_payload_json,
         error_payload_json=excluded.error_payload_json,
@@ -247,6 +251,9 @@ function upsertRun(run: Run) {
     run.approvalId ?? null,
     run.triggerSource ?? null,
     run.parentRunId ?? null,
+    run.workerLink?.sessionKey ?? null,
+    run.workerLink?.sessionId ?? null,
+    run.workerLink?.resumeSessionId ?? null,
     asJson(run.inputPayload),
     asJson(run.resultPayload ?? null),
     asJson(run.errorPayload ?? null),

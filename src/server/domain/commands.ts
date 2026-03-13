@@ -1388,6 +1388,7 @@ export function markRunCompleted(input: {
   runId: string;
   actor: string;
   resultPayload: RunResultPayload;
+  workerLink?: Run["workerLink"];
 }) {
   ensureMissionControlFoundation();
   const run = loadRun(input.runId);
@@ -1404,6 +1405,7 @@ export function markRunCompleted(input: {
     status: "completed",
     startedAt: run.startedAt ?? now,
     finishedAt: now,
+    workerLink: input.workerLink ?? run.workerLink,
     resultPayload: input.resultPayload,
     errorPayload: undefined,
     updatedAt: now,
@@ -1418,6 +1420,7 @@ export function markRunFailed(input: {
   runId: string;
   actor: string;
   errorPayload: RunErrorPayload;
+  workerLink?: Run["workerLink"];
 }) {
   ensureMissionControlFoundation();
   const run = loadRun(input.runId);
@@ -1434,6 +1437,7 @@ export function markRunFailed(input: {
     status: "failed",
     startedAt: run.startedAt ?? now,
     finishedAt: now,
+    workerLink: input.workerLink ?? run.workerLink,
     errorPayload: input.errorPayload,
     resultPayload: undefined,
     updatedAt: now,

@@ -174,6 +174,12 @@ export type RunErrorPayload = {
   rawOutput?: string;
 };
 
+export type RunWorkerLink = {
+  sessionKey?: string;
+  sessionId?: string;
+  resumeSessionId?: string;
+};
+
 export type Run = {
   id: ID;
   taskId: ID;
@@ -191,6 +197,7 @@ export type Run = {
   parentRunId?: ID;
   startedAt?: ISODateTime;
   finishedAt?: ISODateTime;
+  workerLink?: RunWorkerLink;
   resultPayload?: RunResultPayload;
   errorPayload?: RunErrorPayload;
 };

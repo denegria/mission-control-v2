@@ -1,10 +1,11 @@
-import type { Flow, Run, Task } from "@/domain/schema";
+import type { Flow, Run, RunWorkerLink, Task } from "@/domain/schema";
 
 export type ExecutionAdapterSuccess = {
   ok: true;
   finalOutput: string;
   summary?: string;
   rawOutput?: string;
+  workerLink?: RunWorkerLink;
 };
 
 export type ExecutionAdapterFailure = {
@@ -13,6 +14,7 @@ export type ExecutionAdapterFailure = {
   code?: string;
   retryable?: boolean;
   rawOutput?: string;
+  workerLink?: RunWorkerLink;
 };
 
 export type ExecutionAdapterResult = ExecutionAdapterSuccess | ExecutionAdapterFailure;

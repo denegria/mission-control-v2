@@ -184,6 +184,14 @@ function mapRun(row: Record<string, unknown>): Run {
       owner: "",
       actor: "",
     }),
+    workerLink:
+      row.worker_session_key || row.worker_session_id || row.worker_resume_session_id
+        ? {
+            sessionKey: row.worker_session_key ? String(row.worker_session_key) : undefined,
+            sessionId: row.worker_session_id ? String(row.worker_session_id) : undefined,
+            resumeSessionId: row.worker_resume_session_id ? String(row.worker_resume_session_id) : undefined,
+          }
+        : undefined,
     resultPayload: fromJson<RunResultPayload | null>(row.result_payload_json as string | null, null) ?? undefined,
     errorPayload: fromJson<RunErrorPayload | null>(row.error_payload_json as string | null, null) ?? undefined,
     startedAt: row.started_at ? String(row.started_at) : undefined,

@@ -186,6 +186,9 @@ export function runMigrations() {
       approval_id TEXT,
       trigger_source TEXT,
       parent_run_id TEXT,
+      worker_session_key TEXT,
+      worker_session_id TEXT,
+      worker_resume_session_id TEXT,
       input_payload_json TEXT NOT NULL,
       result_payload_json TEXT,
       error_payload_json TEXT,
@@ -209,6 +212,9 @@ export function runMigrations() {
   addColumnIfMissing("protocol_messages", "handled_by", "handled_by TEXT");
   addColumnIfMissing("protocol_messages", "handled_at", "handled_at TEXT");
   addColumnIfMissing("protocol_messages", "canonical_transition_json", "canonical_transition_json TEXT");
+  addColumnIfMissing("runs", "worker_session_key", "worker_session_key TEXT");
+  addColumnIfMissing("runs", "worker_session_id", "worker_session_id TEXT");
+  addColumnIfMissing("runs", "worker_resume_session_id", "worker_resume_session_id TEXT");
 
   migrated = true;
 }

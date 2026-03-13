@@ -17,6 +17,11 @@ export const nativeAcpCodexAdapter: ExecutionAdapter = {
         finalOutput: result.finalOutput,
         summary: result.summary,
         rawOutput: result.rawOutput,
+        workerLink: {
+          sessionKey: result.sessionKey,
+          sessionId: result.sessionId,
+          resumeSessionId: result.sessionId,
+        },
       };
     }
 
@@ -26,6 +31,11 @@ export const nativeAcpCodexAdapter: ExecutionAdapter = {
       code: result.error.code,
       retryable: result.error.retryable,
       rawOutput: result.error.rawOutput,
+      workerLink: {
+        sessionKey: result.sessionKey,
+        sessionId: result.sessionId,
+        resumeSessionId: result.sessionId,
+      },
     };
   },
 };
