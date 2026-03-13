@@ -72,6 +72,7 @@ export function TaskDetailScreen({
   onUpdateHandoffStatus,
   onRequestApproval,
   onDispatchFlowRun,
+  onCancelFlowRun,
   onLinkLane,
   onLinkGithubObject,
   onCreateGithubIssue,
@@ -101,6 +102,7 @@ export function TaskDetailScreen({
   onUpdateHandoffStatus: (formData: FormData) => void | Promise<void>;
   onRequestApproval: (formData: FormData) => void | Promise<void>;
   onDispatchFlowRun: (formData: FormData) => void | Promise<void>;
+  onCancelFlowRun: (formData: FormData) => void | Promise<void>;
   onLinkLane: (formData: FormData) => void | Promise<void>;
   onLinkGithubObject: (formData: FormData) => void | Promise<void>;
   onCreateGithubIssue: (formData: FormData) => void | Promise<void>;
@@ -256,6 +258,25 @@ export function TaskDetailScreen({
                     <details className="mc-inline-collapsible">
                       <summary className="mc-inline-collapsible-summary">Manage flow</summary>
                       <div className="mc-inline-collapsible-body">
+                        <div className="mc-inline-form">
+                          <form action={onDispatchFlowRun} className="mc-inline-form mc-inline-form-tight">
+                            <input type="hidden" name="flowId" value={flow.id} />
+                            <input type="hidden" name="approvalId" value={approvedApprovals[0]?.id ?? ""} />
+                            <input type="hidden" name="adapter" value={latestRun?.adapter ?? "native_acp_codex"} />
+                            <input type="hidden" name="retryMode" value="retry" />
+                            <button className="mc-filter-pill" type="submit" disabled={approvedApprovals.length === 0 || Boolean(activeRun)}>
+                              Retry latest run
+                            </button>
+                          </form>
+                          {activeRun ? (
+                            <form action={onCancelFlowRun} className="mc-inline-form mc-inline-form-tight">
+                              <input type="hidden" name="runId" value={activeRun.id} />
+                              <button className="mc-filter-pill" type="submit">
+                                Cancel active run
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
                         <form action={onUpdateFlowStatus} className="mc-inline-form">
                           <input type="hidden" name="flowId" value={flow.id} />
                           <select name="status" className="mc-filter-select" defaultValue={flow.status}>

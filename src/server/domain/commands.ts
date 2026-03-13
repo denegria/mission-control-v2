@@ -708,6 +708,64 @@ export function updateFlowStatus(input: { flowId: string; status: string; actor:
   return updatedFlow;
 }
 
+function deriveClosureTransition(resultPayload: RunResultPayload | undefined): {
+  flowStatus?: string;
+  taskStatus?: string;
+  summary?: string;
+} {
+  if (!resultPayload) {
+    return {};
+  }
+
+  const raw = [resultPayload.summary, resultPayload.finalOutput, resultPayload.rawOutput]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  if (!raw) {
+    return {};
+  }
+
+  const lower = raw.toLowerCase();
+
+  if (lower.includes('"outcome":"blocked"') || lower.includes("outcome: blocked") || lower.includes("status: blocked")) {
+    return { flowStatus: "blocked", summary: "Run closure marked flow blocked" };
+  }
+
+  if (lower.includes('"outcome":"done"') || lower.includes("outcome: done") || lower.includes("status: done")) {
+    return { flowStatus: "done", taskStatus: "in_review", summary: "Run closure marked flow done" };
+  }
+
+  if (lower.includes('"outcome":"approved"') || lower.includes("outcome: approved") || lower.includes("status: approved")) {
+    return { flowStatus: "approved", taskStatus: "completed", summary: "Run closure approved task completion" };
+  }
+
+  if (lower.includes('"outcome":"review"') || lower.includes("outcome: review") || lower.includes("status: review")) {
+    return { flowStatus: "in_review", taskStatus: "in_review", summary: "Run closure requested review" };
+  }
+
+  return {};
+}
+
+function applyRunClosureTransition(run: Run, actor: string, resultPayload: RunResultPayload | undefined) {
+  const flow = loadFlow(run.flowId);
+  if (!flow) {
+    return;
+  }
+
+  const transition = deriveClosureTransition(resultPayload);
+  if (transition.flowStatus && flow.status !== transition.flowStatus) {
+    updateFlowStatus({ flowId: flow.id, status: transition.flowStatus, actor });
+  }
+
+  if (transition.taskStatus) {
+    const task = loadTask(run.taskId);
+    if (task && task.status !== transition.taskStatus) {
+      updateTaskStatus({ taskId: task.id, status: transition.taskStatus, actor });
+    }
+  }
+}
+
 export function updateFlowOwner(input: { flowId: string; owner: string; actor: string }) {
   ensureMissionControlFoundation();
   const flow = loadFlow(input.flowId);
@@ -1414,6 +1472,7 @@ export function markRunCompleted(input: {
   };
 
   saveEvent(eventForRunCompleted(updatedRun, input.actor));
+  applyRunClosureTransition(updatedRun, input.actor, input.resultPayload);
   touchTask(updatedRun.taskId, input.actor);
   return updatedRun;
 }

@@ -932,6 +932,10 @@ body {
   margin-bottom: 10px;
 }
 
+.mc-inline-form-tight {
+  margin-bottom: 0;
+}
+
 .mc-stacked-form {
   border: 1px solid rgba(124, 136, 162, 0.18);
   border-radius: 8px;

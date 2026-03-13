@@ -9,6 +9,7 @@ import {
   emitProtocolMessage,
   createGithubIssueForWork,
   dispatchFlowRun,
+  markRunCanceled,
   linkTaskLane,
   linkTaskGithubObject,
   linkFlowGithubObject,
@@ -370,6 +371,7 @@ export default async function TaskDetailPage({
     const flowId = String(formData.get("flowId") ?? "").trim();
     const adapter = String(formData.get("adapter") ?? "").trim();
     const approvalId = String(formData.get("approvalId") ?? "").trim();
+    const retryMode = String(formData.get("retryMode") ?? "").trim();
 
     if (!flowId || !RUN_ADAPTERS.includes(adapter as (typeof RUN_ADAPTERS)[number]) || !approvalId) {
       const params = new URLSearchParams({
@@ -386,7 +388,7 @@ export default async function TaskDetailPage({
       agent,
       approvalId,
       requestedBy: actorId,
-      triggerSource: "manual_dispatch",
+      triggerSource: retryMode === "retry" ? "retry" : "manual_dispatch",
     });
 
     revalidatePath(`/tasks/${taskId}`);
@@ -404,6 +406,28 @@ export default async function TaskDetailPage({
           },
     );
     redirect(`/tasks/${taskId}?${params.toString()}`);
+  }
+
+  async function handleCancelFlowRun(formData: FormData) {
+    "use server";
+
+    const runId = String(formData.get("runId") ?? "").trim();
+    if (!runId) {
+      return;
+    }
+
+    markRunCanceled({
+      runId,
+      actor: actorId,
+      errorPayload: {
+        message: "Run canceled manually from Task Detail.",
+        code: "MANUAL_CANCEL",
+        retryable: true,
+      },
+    });
+
+    revalidatePath(`/tasks/${taskId}`);
+    revalidatePath("/tasks");
   }
 
   const detail = getTaskDetail(taskId);
@@ -442,6 +466,7 @@ export default async function TaskDetailPage({
         onUpdateHandoffStatus={handleHandoffStatus}
         onRequestApproval={handleRequestApproval}
         onDispatchFlowRun={handleDispatchFlowRun}
+        onCancelFlowRun={handleCancelFlowRun}
         onLinkLane={handleLinkLane}
         onLinkGithubObject={handleLinkGithubObject}
         onCreateGithubIssue={handleCreateGithubIssue}
