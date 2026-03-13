@@ -9,6 +9,8 @@ export const nativeAcpCodexAdapter: ExecutionAdapter = {
       taskId: context.run.taskId,
       agent: "codex",
       prompt: context.run.inputPayload.prompt,
+      resumeSessionId: context.run.workerLink?.resumeSessionId,
+      resumeSessionKey: context.run.workerLink?.sessionKey,
     });
 
     if (result.ok) {
@@ -20,7 +22,7 @@ export const nativeAcpCodexAdapter: ExecutionAdapter = {
         workerLink: {
           sessionKey: result.sessionKey,
           sessionId: result.sessionId,
-          resumeSessionId: result.sessionId,
+          resumeSessionId: result.sessionId ?? context.run.workerLink?.resumeSessionId,
         },
       };
     }
@@ -34,7 +36,7 @@ export const nativeAcpCodexAdapter: ExecutionAdapter = {
       workerLink: {
         sessionKey: result.sessionKey,
         sessionId: result.sessionId,
-        resumeSessionId: result.sessionId,
+        resumeSessionId: result.sessionId ?? context.run.workerLink?.resumeSessionId,
       },
     };
   },

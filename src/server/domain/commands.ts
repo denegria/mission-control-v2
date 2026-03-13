@@ -1326,6 +1326,7 @@ export function createRun(input: {
   approvalId?: string;
   triggerSource?: string;
   parentRunId?: string;
+  workerLink?: Run["workerLink"];
   inputPayload: RunInputPayload;
 }) {
   ensureMissionControlFoundation();
@@ -1348,6 +1349,7 @@ export function createRun(input: {
     approvalId: input.approvalId?.trim() || undefined,
     triggerSource: input.triggerSource ? asRunTriggerSource(input.triggerSource) : undefined,
     parentRunId: input.parentRunId?.trim() || undefined,
+    workerLink: input.workerLink,
     inputPayload: input.inputPayload,
     createdAt: now,
     updatedAt: now,
@@ -1547,6 +1549,14 @@ export async function dispatchFlowRun(input: {
   }
 
   const prompt = buildFlowExecutionPrompt({ task, flow });
+  const parentRun = input.parentRunId ? loadRun(input.parentRunId) : null;
+  const workerLink =
+    parentRun && parentRun.flowId === flow.id && parentRun.workerLink?.resumeSessionId
+      ? {
+          ...parentRun.workerLink,
+        }
+      : undefined;
+
   const run = createRun({
     taskId: task.id,
     flowId: flow.id,
@@ -1557,6 +1567,7 @@ export async function dispatchFlowRun(input: {
     approvalId: approval.id,
     triggerSource: input.triggerSource,
     parentRunId: input.parentRunId,
+    workerLink,
     inputPayload: {
       prompt,
       flowTitle: flow.title,

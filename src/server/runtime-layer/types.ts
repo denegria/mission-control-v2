@@ -8,6 +8,7 @@ export type NativeAcpRunRequest = {
   prompt: string;
   timeoutSeconds?: number;
   resumeSessionId?: string;
+  resumeSessionKey?: string;
 };
 
 export type NativeAcpRunResult =

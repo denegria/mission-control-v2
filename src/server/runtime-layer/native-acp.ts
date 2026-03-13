@@ -11,6 +11,7 @@ type SpawnDetails = {
   runId?: string;
   mode?: string;
   note?: string;
+  sessionId?: string;
 };
 
 type HistoryDetails = {
@@ -75,6 +76,7 @@ export async function runNativeAcp(request: NativeAcpRunRequest): Promise<Native
       mode: "run",
       cleanup: "delete",
       runTimeoutSeconds: request.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS,
+      resumeSessionId: request.resumeSessionId,
     });
 
     if (!spawn.childSessionKey) {
@@ -93,6 +95,7 @@ export async function runNativeAcp(request: NativeAcpRunRequest): Promise<Native
     return {
       ok: true,
       sessionKey: result.sessionKey,
+      sessionId: spawn.sessionId,
       finalOutput: result.finalOutput,
       summary: result.finalOutput.slice(0, 240),
       rawOutput: result.finalOutput,
@@ -100,6 +103,8 @@ export async function runNativeAcp(request: NativeAcpRunRequest): Promise<Native
   } catch (error) {
     return {
       ok: false,
+      sessionKey: request.resumeSessionKey,
+      sessionId: request.resumeSessionId,
       error: {
         message: error instanceof Error ? error.message : "Unknown native ACP failure",
         code: "NATIVE_ACP_RUN_FAILED",
