@@ -24,6 +24,7 @@ import {
 import { Panel } from "@/components/mc/AppShell";
 import type { ActorOption } from "@/lib/actors";
 import { getActorLabel } from "@/lib/actors";
+import { getExecutionPlan } from "@/lib/runtime-routing";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
@@ -196,6 +197,7 @@ export function TaskDetailScreen({
                 const latestRun = flowRuns[0];
                 const recentRuns = flowRuns.slice(0, 3);
                 const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
+                const executionPlan = getExecutionPlan({ actor: flow.owner, settings });
                 const approvedApprovals = approvals.filter(
                   (approval) =>
                     approval.status === "approved" &&
@@ -217,6 +219,7 @@ export function TaskDetailScreen({
                     </div>
                     <p>
                       {getActorLabel(flow.owner, settings)}
+                      {` • ${executionPlan.runtimeLabel} via ${executionPlan.transportLabel}`}
                       {flowExceptions.length > 0
                         ? ` • ${flowExceptions.length} active protocol exception${flowExceptions.length === 1 ? "" : "s"}`
                         : flowProtocolItems.length > 0
@@ -262,7 +265,7 @@ export function TaskDetailScreen({
                           <form action={onDispatchFlowRun} className="mc-inline-form mc-inline-form-tight">
                             <input type="hidden" name="flowId" value={flow.id} />
                             <input type="hidden" name="approvalId" value={approvedApprovals[0]?.id ?? ""} />
-                            <input type="hidden" name="adapter" value={latestRun?.adapter ?? "native_acp_codex"} />
+                            <input type="hidden" name="adapter" value={latestRun?.adapter ?? executionPlan.adapter} />
                             <input type="hidden" name="retryMode" value="retry" />
                             <button className="mc-filter-pill" type="submit" disabled={approvedApprovals.length === 0 || Boolean(activeRun)}>
                               Retry latest run
@@ -306,9 +309,10 @@ export function TaskDetailScreen({
                         <div>
                           <p className="mc-meta-line">Execution lane</p>
                           <p className="mc-meta-line">
+                            {executionPlan.runtimeLabel} via {executionPlan.transportLabel}
                             {approvedApprovals.length > 0
-                              ? `${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available for dispatch`
-                              : "Dispatch unavailable until an approval is approved"}
+                              ? ` • ${approvedApprovals.length} approved approval${approvedApprovals.length === 1 ? "" : "s"} available for dispatch`
+                              : " • Dispatch unavailable until an approval is approved"}
                           </p>
                         </div>
                         <form action={onDispatchFlowRun} className="mc-inline-form mc-stacked-form">
@@ -326,8 +330,8 @@ export function TaskDetailScreen({
                               </option>
                             ))}
                           </select>
-                          <select name="adapter" className="mc-filter-select" defaultValue="native_acp_codex" disabled={Boolean(activeRun)}>
-                            {RUN_ADAPTERS.map((adapter) => (
+                          <select name="adapter" className="mc-filter-select" defaultValue={executionPlan.adapter} disabled={Boolean(activeRun)}>
+                            {executionPlan.allowedAdapters.map((adapter) => (
                               <option key={adapter} value={adapter}>
                                 {fmtRunAdapter(adapter)}
                               </option>
