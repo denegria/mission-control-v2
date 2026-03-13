@@ -46,6 +46,10 @@ function fmtRunAdapter(adapter: Run["adapter"]) {
   return adapter.replace("native_acp_", "native acp ").replace("acpx_", "");
 }
 
+function prettyLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
 export function TaskDetailScreen({
   task,
   flows,
@@ -130,25 +134,26 @@ export function TaskDetailScreen({
 
   return (
     <div className="mc-detail-wrap">
-      <div className="mc-heading-row">
-        <div>
+      <section className="mc-task-hero">
+        <div className="mc-task-hero-copy">
+          <p className="mc-task-kicker">Task detail</p>
           <h2>{task.title}</h2>
           <p>{task.objective}</p>
         </div>
-      </div>
+        <div className="mc-task-summary-chips" aria-label="Task summary">
+          <span className="mc-detail-chip mc-detail-chip-status">{prettyLabel(task.status)}</span>
+          <span className="mc-detail-chip">{task.priority} priority</span>
+          <span className="mc-detail-chip">Owner · {getActorLabel(task.owner, settings)}</span>
+          <span className="mc-detail-chip">Requester · {getActorLabel(task.requester, settings)}</span>
+          <span className="mc-detail-chip">Project · {currentProjectName}</span>
+          <span className="mc-detail-chip">Updated · {fmtDate(task.updatedAt)}</span>
+          <span className="mc-detail-chip">{flows.length} flow{flows.length === 1 ? "" : "s"}</span>
+          <span className="mc-detail-chip">{approvals.length} approval{approvals.length === 1 ? "" : "s"}</span>
+        </div>
+      </section>
 
       <div className="mc-detail-grid">
-        <Panel>
-          <h3 className="mc-col-title">Overview</h3>
-          <p className="mc-meta-line">Owner: {getActorLabel(task.owner, settings)}</p>
-          <p className="mc-meta-line">Requester: {getActorLabel(task.requester, settings)}</p>
-          <p className="mc-meta-line">Status: {task.status.replaceAll("_", " ")}</p>
-          <p className="mc-meta-line">Priority: {task.priority}</p>
-          <p className="mc-meta-line">Project: {currentProjectName}</p>
-          <p className="mc-meta-line">Updated: {fmtDate(task.updatedAt)}</p>
-        </Panel>
-
-        <Panel>
+        <Panel className="mc-panel-emphasis">
           <h3 className="mc-col-title">Task Controls</h3>
           <form action={onUpdateTaskStatus} className="mc-inline-form">
             <select name="status" className="mc-filter-select" defaultValue={task.status}>
@@ -316,25 +321,25 @@ export function TaskDetailScreen({
               );
 
               return (
-                <article key={flow.id} className="mc-task-card">
-                  <h4>
-                    {flow.title} ({flow.type})
-                  </h4>
+                <article key={flow.id} className="mc-task-card mc-flow-card">
+                  <div className="mc-flow-card-head">
+                    <div>
+                      <h4>{flow.title}</h4>
+                      <p className="mc-meta-line">{flow.objective ?? "No flow objective yet."}</p>
+                    </div>
+                    <div className="mc-flow-badges">
+                      <span className="mc-detail-chip">{flow.type}</span>
+                      <span className="mc-detail-chip mc-detail-chip-status">{prettyLabel(flow.status)}</span>
+                    </div>
+                  </div>
                   <p>
-                    {getActorLabel(flow.owner, settings)} • {flow.status.replaceAll("_", " ")}
+                    {getActorLabel(flow.owner, settings)}
+                    {flowExceptions.length > 0
+                      ? ` • ${flowExceptions.length} active protocol exception${flowExceptions.length === 1 ? "" : "s"}`
+                      : flowProtocolItems.length > 0
+                        ? ` • ${flowProtocolItems.length} active protocol item${flowProtocolItems.length === 1 ? "" : "s"}`
+                        : " • clear lane"}
                   </p>
-                  {flowExceptions.length > 0 ? (
-                    <p>
-                      {flowExceptions.length} active protocol exception
-                      {flowExceptions.length === 1 ? "" : "s"}
-                    </p>
-                  ) : null}
-                  {flowProtocolItems.length > 0 ? (
-                    <p>
-                      {flowProtocolItems.length} active protocol item
-                      {flowProtocolItems.length === 1 ? "" : "s"}
-                    </p>
-                  ) : null}
                   <form action={onUpdateFlowStatus} className="mc-inline-form">
                     <input type="hidden" name="flowId" value={flow.id} />
                     <select name="status" className="mc-filter-select" defaultValue={flow.status}>
@@ -396,21 +401,21 @@ export function TaskDetailScreen({
                     </button>
                   </form>
                   {latestRun ? (
-                    <div>
+                    <div className="mc-run-block">
                       <p className="mc-meta-line">
-                        Latest run • {latestRun.status.replaceAll("_", " ")} via {fmtRunAdapter(latestRun.adapter)}
+                        Latest run • {prettyLabel(latestRun.status)} via {fmtRunAdapter(latestRun.adapter)}
                         {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
                       </p>
                       {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
-                      {latestRun.resultPayload?.finalOutput ? <pre className="mc-inline-input">{latestRun.resultPayload.finalOutput}</pre> : null}
-                      {latestRun.errorPayload?.message ? <p>{latestRun.errorPayload.message}</p> : null}
+                      {latestRun.resultPayload?.finalOutput ? <pre className="mc-run-output">{latestRun.resultPayload.finalOutput}</pre> : null}
+                      {latestRun.errorPayload?.message ? <p className="mc-run-error">{latestRun.errorPayload.message}</p> : null}
                       {recentRuns.length > 1 ? (
                         <div>
                           <p className="mc-meta-line">Recent run history</p>
-                          <ul className="mc-activity-feed">
+                          <ul className="mc-activity-feed mc-activity-feed-compact">
                             {recentRuns.map((run) => (
                               <li key={run.id}>
-                                {run.status.replaceAll("_", " ")} via {fmtRunAdapter(run.adapter)}
+                                {prettyLabel(run.status)} via {fmtRunAdapter(run.adapter)}
                                 {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
                               </li>
                             ))}
@@ -421,7 +426,7 @@ export function TaskDetailScreen({
                   ) : (
                     <p>No runs yet.</p>
                   )}
-                  {flow.summary ? <p>{flow.summary}</p> : null}
+                  {flow.summary ? <p className="mc-flow-summary">{flow.summary}</p> : null}
                 </article>
               );
             })}
