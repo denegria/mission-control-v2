@@ -3,6 +3,7 @@ import type { ExecutionAdapter } from "@/server/execution/adapters/types";
 import { acpxCodexAdapter } from "@/server/execution/adapters/acpx-codex";
 import { acpxGeminiAdapter } from "@/server/execution/adapters/acpx-gemini";
 import { nativeAcpCodexAdapter } from "@/server/execution/adapters/native-acp-codex";
+import { nativeAcpGeminiAdapter } from "@/server/execution/adapters/native-acp-gemini";
 import { markRunCompleted, markRunFailed, markRunStarted } from "@/server/domain/commands";
 
 function resolveAdapter(adapter: string): ExecutionAdapter | null {
@@ -11,6 +12,8 @@ function resolveAdapter(adapter: string): ExecutionAdapter | null {
       return acpxCodexAdapter;
     case "native_acp_codex":
       return nativeAcpCodexAdapter;
+    case "native_acp_gemini":
+      return nativeAcpGeminiAdapter;
     case "acpx_gemini":
       return acpxGeminiAdapter;
     default:
