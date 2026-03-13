@@ -406,7 +406,7 @@ export default async function TaskDetailPage({
       result.ok
         ? {
             dispatchStatus: "success",
-            dispatchMessage: `${adapter.replace("acpx_", "")} run started.`,
+            dispatchMessage: `${plan.runtimeLabel} run started via ${plan.transportLabel}.`,
           }
         : {
             dispatchStatus: "error",
