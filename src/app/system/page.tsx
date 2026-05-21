@@ -2,6 +2,7 @@ import { AppShell } from "@/components/mc/AppShell";
 import { Panel } from "@/components/mc/AppShell";
 import { getSqliteStorageStatus } from "@/server/db/sqlite";
 import { getSettings } from "@/server/domain/repository";
+import { getRuntimeLayerStatus } from "@/server/runtime-layer/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +10,9 @@ export const dynamic = "force-dynamic";
 export default function SystemPage() {
   const settings = getSettings();
   const storage = getSqliteStorageStatus();
+  const runtimeLayer = getRuntimeLayerStatus();
   const storageTone = storage.durability === "ephemeral" ? "warning" : "success";
+  const runtimeTone = runtimeLayer.warning ? "warning" : "success";
 
   return (
     <AppShell activeTab="system">
@@ -30,6 +33,21 @@ export default function SystemPage() {
           <p className="mc-proj-desc">{storage.label}</p>
           <p className="mc-system-path">{storage.path}</p>
           {storage.warning ? <p className="mc-system-warning">{storage.warning}</p> : null}
+        </Panel>
+        <Panel className={runtimeLayer.warning ? "mc-panel-warning" : "mc-panel-emphasis"}>
+          <div className="mc-system-card-head">
+            <h3>Runtime Gateway</h3>
+            <span className={`mc-system-chip is-${runtimeTone}`}>
+              {runtimeLayer.gatewayReachability === "local" ? "Local" : "Remote"}
+            </span>
+          </div>
+          <p className="mc-proj-desc">OpenClaw worker dispatch target</p>
+          <p className="mc-system-path">{runtimeLayer.gatewayUrl}</p>
+          <div className="mc-system-facts">
+            <span>Token: {runtimeLayer.tokenConfigured ? "configured" : "not configured"}</span>
+            <span>Timeout: {Math.round(runtimeLayer.timeoutMs / 1000)}s</span>
+          </div>
+          {runtimeLayer.warning ? <p className="mc-system-warning">{runtimeLayer.warning}</p> : null}
         </Panel>
         <Panel>
           <h3>Operators</h3>

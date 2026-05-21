@@ -923,6 +923,21 @@ body {
   overflow-wrap: anywhere;
 }
 
+.mc-system-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.mc-system-facts span {
+  border: 1px solid rgba(124, 136, 162, 0.22);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #9daac0;
+  font-size: 11px;
+}
+
 .mc-system-warning {
   margin: 0;
   border-top: 1px solid rgba(226, 157, 48, 0.22);
