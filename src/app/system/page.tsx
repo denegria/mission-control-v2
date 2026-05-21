@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/mc/AppShell";
 import { Panel } from "@/components/mc/AppShell";
+import { getSqliteStorageStatus } from "@/server/db/sqlite";
 import { getSettings } from "@/server/domain/repository";
 
 export const runtime = "nodejs";
@@ -7,6 +8,9 @@ export const dynamic = "force-dynamic";
 
 export default function SystemPage() {
   const settings = getSettings();
+  const storage = getSqliteStorageStatus();
+  const storageTone = storage.durability === "ephemeral" ? "warning" : "success";
+
   return (
     <AppShell activeTab="system">
       <div className="mc-heading-row">
@@ -16,6 +20,17 @@ export default function SystemPage() {
         </div>
       </div>
       <div className="mc-project-grid">
+        <Panel className={storage.durability === "ephemeral" ? "mc-panel-warning" : "mc-panel-emphasis"}>
+          <div className="mc-system-card-head">
+            <h3>Storage</h3>
+            <span className={`mc-system-chip is-${storageTone}`}>
+              {storage.durability === "ephemeral" ? "Preview-only" : "Durable"}
+            </span>
+          </div>
+          <p className="mc-proj-desc">{storage.label}</p>
+          <p className="mc-system-path">{storage.path}</p>
+          {storage.warning ? <p className="mc-system-warning">{storage.warning}</p> : null}
+        </Panel>
         <Panel>
           <h3>Operators</h3>
           <p className="mc-proj-desc">Default operator: {settings?.operators.defaultOperatorLabel ?? "Giuseppe"}</p>

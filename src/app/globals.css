@@ -878,6 +878,60 @@ body {
   background: linear-gradient(180deg, rgba(15, 19, 31, 0.94), rgba(10, 13, 21, 0.98));
 }
 
+.mc-panel-warning {
+  border-color: rgba(226, 157, 48, 0.4);
+  background:
+    radial-gradient(circle at top right, rgba(226, 157, 48, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(22, 17, 10, 0.9), rgba(13, 13, 18, 0.96));
+}
+
+.mc-system-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.mc-system-card-head h3 {
+  margin: 0;
+}
+
+.mc-system-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.mc-system-chip.is-success {
+  color: #8edca9;
+  border-color: rgba(87, 215, 157, 0.5);
+}
+
+.mc-system-chip.is-warning {
+  color: #f2c77d;
+  border-color: rgba(226, 157, 48, 0.56);
+}
+
+.mc-system-path {
+  margin: 0 0 10px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #b8c3d7;
+  overflow-wrap: anywhere;
+}
+
+.mc-system-warning {
+  margin: 0;
+  border-top: 1px solid rgba(226, 157, 48, 0.22);
+  padding-top: 10px;
+  color: #dcb36f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .mc-collapsible-section {
   display: block;
 }
