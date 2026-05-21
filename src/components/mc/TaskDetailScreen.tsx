@@ -7,7 +7,6 @@ import {
   PROTOCOL_MESSAGE_TYPES,
   PROTOCOL_STATUSES,
   RISK_CATEGORIES,
-  RUN_ADAPTERS,
   TASK_STATUSES,
   type Approval,
   type Flow,

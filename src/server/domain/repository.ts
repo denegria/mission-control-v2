@@ -1,4 +1,4 @@
-import type { Approval, CanonicalTransition, Flow, Handoff, LaneLink, Project, ProtocolMessage, ProtocolReference, Run, RunErrorPayload, RunInputPayload, RunResultPayload, Settings, Task, TimelineEvent } from "@/domain/schema";
+import type { Approval, CanonicalTransition, Flow, Handoff, LaneLink, LinkedGithubObject, Project, ProtocolMessage, ProtocolReference, Run, RunErrorPayload, RunInputPayload, RunResultPayload, Settings, Task, TimelineEvent } from "@/domain/schema";
 import {
   asApprovalStatus,
   asApprovalTargetType,
@@ -17,6 +17,7 @@ import {
   asTaskStatus,
 } from "@/domain/schema";
 import type { ProtocolExceptionInboxItem, TaskWorkboardItem } from "@/domain/tasks";
+import type { RunConsoleItem, RunLifecycleStage, RunScorecard } from "@/domain/runs";
 import { fromJson, getSqliteDb } from "@/server/db/sqlite";
 import { ensureMissionControlFoundation } from "@/server/domain/bootstrap";
 
@@ -214,6 +215,90 @@ function mapLaneLink(row: Record<string, unknown>): LaneLink {
   };
 }
 
+function textSignals(...values: Array<string | undefined>) {
+  const text = values.filter(Boolean).join("\n").toLowerCase();
+  return {
+    matchLines: (patterns: RegExp[], fallback: string) => {
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const matches = lines.filter((line) => patterns.some((pattern) => pattern.test(line))).slice(0, 4);
+      return matches.length > 0 ? matches : [fallback];
+    },
+  };
+}
+
+function extractClosure(finalOutput?: string) {
+  if (!finalOutput) {
+    return {};
+  }
+
+  const outcome = finalOutput.match(/(?:^|\n)outcome:\s*([^\n]+)/i)?.[1]?.trim();
+  const summary = finalOutput.match(/(?:^|\n)summary:\s*([^\n]+)/i)?.[1]?.trim();
+  return {
+    closureOutcome: outcome,
+    closureSummary: summary,
+  };
+}
+
+function formatDuration(startedAt?: string, finishedAt?: string) {
+  if (!startedAt) {
+    return "Not started";
+  }
+
+  const endMs = finishedAt ? Date.parse(finishedAt) : Date.now();
+  const deltaSeconds = Math.max(0, Math.round((endMs - Date.parse(startedAt)) / 1000));
+  if (deltaSeconds < 60) {
+    return `${deltaSeconds}s`;
+  }
+
+  const minutes = Math.floor(deltaSeconds / 60);
+  const seconds = deltaSeconds % 60;
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+}
+
+function computeLifecycleStage(run: Run, githubObjects: LinkedGithubObject[], evidenceText: string): RunLifecycleStage {
+  if (run.status === "failed" || run.status === "canceled") {
+    return "blocked";
+  }
+
+  const hasCommit = githubObjects.some((item) => item.type === "commit") || /\bcommit\b|sha\b/.test(evidenceText);
+  const hasValidation = /validation|validated|lint|build|test|passed|pass\b/.test(evidenceText);
+  const hasLanded = githubObjects.some((item) => item.type === "pull_request" && item.state?.toLowerCase() === "merged") || /landed|merged|pushed|deployed/.test(evidenceText);
+
+  if (hasLanded) {
+    return "landed";
+  }
+  if (hasValidation) {
+    return "validated";
+  }
+  if (hasCommit) {
+    return "finalist";
+  }
+  return "candidate";
+}
+
+function buildRunScorecard(run: Run, githubObjects: LinkedGithubObject[]): RunScorecard {
+  const outputText = [run.resultPayload?.summary, run.resultPayload?.finalOutput, run.resultPayload?.rawOutput, run.errorPayload?.message, run.errorPayload?.rawOutput].filter(Boolean).join("\n");
+  const signals = textSignals(outputText);
+  const closure = extractClosure(run.resultPayload?.finalOutput);
+  const lifecycleStage = computeLifecycleStage(run, githubObjects, outputText.toLowerCase());
+
+  return {
+    lifecycleStage,
+    durationLabel: formatDuration(run.startedAt, run.finishedAt),
+    validationSignals: signals.matchLines([/\bnpm run\b/, /\blint\b/, /\bbuild\b/, /\btest\b/, /\bvalidate/, /\bpassed\b/, /\bfailed\b/], "No validation evidence captured"),
+    changedFileSignals: signals.matchLines([/\bsrc\//, /\bapp\//, /\blib\//, /\bserver\//, /\bcomponents\//, /\bchanged files?\b/], "No changed-file signal captured"),
+    reviewerSignals: signals.matchLines([/\bsentry\b/, /\btitan\b/, /\breview\b/, /\bqa\b/, /\bapproval\b/], "No reviewer signal captured"),
+    artifactSignals:
+      githubObjects.length > 0
+        ? githubObjects.slice(0, 4).map((item) => `${item.type.replaceAll("_", " ")}: ${item.ref}`)
+        : signals.matchLines([/\bbranch\b/, /\bcommit\b/, /\bsha\b/, /\bpr\b/, /\bpull request\b/], "No branch/commit artifact captured"),
+    ...closure,
+  };
+}
+
 export function listWorkboardTasks(filters: WorkboardFilters = {}): TaskWorkboardItem[] {
   ensureMissionControlFoundation();
   const db = getSqliteDb();
@@ -312,6 +397,96 @@ export function listRunsForFlow(flowId: string): Run[] {
   const db = getSqliteDb();
   const rows = db.prepare("SELECT * FROM runs WHERE flow_id = ? ORDER BY created_at DESC").all(flowId) as Record<string, unknown>[];
   return rows.map(mapRun);
+}
+
+export function listRunConsoleItems(limit = 50): RunConsoleItem[] {
+  ensureMissionControlFoundation();
+  const db = getSqliteDb();
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          r.*,
+          t.title as task_title,
+          t.status as task_status,
+          t.priority as task_priority,
+          t.owner as task_owner,
+          t.updated_at as task_updated_at,
+          t.linked_github_objects_json as task_github_json,
+          f.title as flow_title,
+          f.status as flow_status,
+          f.type as flow_type,
+          f.owner as flow_owner,
+          f.linked_github_objects_json as flow_github_json,
+          l.id as lane_id,
+          l.lane_type as lane_type,
+          l.label as lane_label,
+          l.external_id as lane_external_id,
+          l.task_id as lane_task_id,
+          l.flow_id as lane_flow_id,
+          l.created_at as lane_created_at,
+          l.updated_at as lane_updated_at
+        FROM runs r
+        INNER JOIN tasks t ON t.id = r.task_id
+        INNER JOIN flows f ON f.id = r.flow_id
+        LEFT JOIN lane_links l ON l.flow_id = r.flow_id OR (l.flow_id IS NULL AND l.task_id = r.task_id)
+        ORDER BY
+          CASE r.status
+            WHEN 'running' THEN 0
+            WHEN 'queued' THEN 1
+            WHEN 'failed' THEN 2
+            WHEN 'completed' THEN 3
+            ELSE 4
+          END,
+          r.updated_at DESC
+        LIMIT ?
+      `,
+    )
+    .all(limit) as Record<string, unknown>[];
+
+  return rows.map((row) => {
+    const run = mapRun(row);
+    const linkedGithubObjects = [
+      ...fromJson<LinkedGithubObject[]>(row.task_github_json as string | null, []),
+      ...fromJson<LinkedGithubObject[]>(row.flow_github_json as string | null, []),
+    ];
+
+    const lane =
+      row.lane_id && row.lane_type && row.lane_label && row.lane_external_id
+        ? mapLaneLink({
+            id: row.lane_id,
+            lane_type: row.lane_type,
+            label: row.lane_label,
+            external_id: row.lane_external_id,
+            task_id: row.lane_task_id,
+            flow_id: row.lane_flow_id,
+            created_at: row.lane_created_at,
+            updated_at: row.lane_updated_at,
+          })
+        : undefined;
+
+    return {
+      run,
+      task: {
+        id: run.taskId,
+        title: String(row.task_title),
+        status: asTaskStatus(String(row.task_status)),
+        priority: asPriority(String(row.task_priority)),
+        owner: String(row.task_owner),
+        updatedAt: String(row.task_updated_at),
+      },
+      flow: {
+        id: run.flowId,
+        title: String(row.flow_title),
+        status: asFlowStatus(String(row.flow_status)),
+        type: asFlowType(String(row.flow_type)),
+        owner: String(row.flow_owner),
+      },
+      lane,
+      linkedGithubObjects,
+      scorecard: buildRunScorecard(run, linkedGithubObjects),
+    };
+  });
 }
 
 export function getActiveRunForFlow(flowId: string): Run | null {

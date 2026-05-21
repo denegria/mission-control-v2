@@ -7,6 +7,7 @@ export type NavTab = {
 
 export const navTabs: NavTab[] = [
   { key: "tasks", label: "Tasks", href: "/tasks", icon: "◻" },
+  { key: "runs", label: "Runs", href: "/runs", icon: "◈" },
   { key: "agents", label: "Agents", href: "/agents", icon: "◌" },
   { key: "content", label: "Content", href: "/content", icon: "▣" },
   { key: "approvals", label: "Approvals", href: "/approvals", icon: "◍" },
