@@ -204,6 +204,21 @@ export function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_runs_flow_id ON runs(flow_id);
     CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
     CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
+
+    CREATE TABLE IF NOT EXISTS run_scorecards (
+      run_id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      flow_id TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(run_id) REFERENCES runs(id) ON DELETE CASCADE,
+      FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY(flow_id) REFERENCES flows(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_run_scorecards_task_id ON run_scorecards(task_id);
+    CREATE INDEX IF NOT EXISTS idx_run_scorecards_flow_id ON run_scorecards(flow_id);
   `);
 
   addColumnIfMissing("projects", "github_repo", "github_repo TEXT");

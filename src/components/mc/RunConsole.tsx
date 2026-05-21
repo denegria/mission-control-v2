@@ -54,6 +54,10 @@ function SignalList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function verificationLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
+
 export function RunConsole({ items, settings }: { items: RunConsoleItem[]; settings: Settings | null }) {
   const activeCount = countBy(items, (item) => item.run.status === "queued" || item.run.status === "running");
   const validatedCount = countBy(items, (item) => item.scorecard.lifecycleStage === "validated" || item.scorecard.lifecycleStage === "landed");
@@ -156,7 +160,22 @@ export function RunConsole({ items, settings }: { items: RunConsoleItem[]; setti
                   <span>Worker session</span>
                   <strong>{item.run.workerLink?.sessionKey ?? item.run.workerLink?.sessionId ?? "Not attached"}</strong>
                 </div>
+                <div>
+                  <span>Scorecard</span>
+                  <strong>{item.scorecard.source}</strong>
+                </div>
+                <div>
+                  <span>Verification</span>
+                  <strong>{verificationLabel(item.scorecard.verificationStatus)}</strong>
+                </div>
               </div>
+
+              {item.scorecard.verificationStatus === "requested" ? (
+                <div className="mc-run-console-verification">
+                  <strong>{item.scorecard.verificationOwner ?? "Sentry"}</strong>
+                  <span>verification requested from run closure</span>
+                </div>
+              ) : null}
 
               {item.scorecard.closureSummary || item.scorecard.closureOutcome ? (
                 <div className="mc-run-console-closure">

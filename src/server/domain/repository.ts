@@ -17,9 +17,10 @@ import {
   asTaskStatus,
 } from "@/domain/schema";
 import type { ProtocolExceptionInboxItem, TaskWorkboardItem } from "@/domain/tasks";
-import type { RunConsoleItem, RunLifecycleStage, RunScorecard } from "@/domain/runs";
+import type { RunConsoleItem } from "@/domain/runs";
 import { fromJson, getSqliteDb } from "@/server/db/sqlite";
 import { ensureMissionControlFoundation } from "@/server/domain/bootstrap";
+import { buildRunScorecard, readRunScorecard } from "@/server/domain/run-scorecards";
 
 type WorkboardFilters = {
   owner?: string;
@@ -215,90 +216,6 @@ function mapLaneLink(row: Record<string, unknown>): LaneLink {
   };
 }
 
-function textSignals(...values: Array<string | undefined>) {
-  const text = values.filter(Boolean).join("\n").toLowerCase();
-  return {
-    matchLines: (patterns: RegExp[], fallback: string) => {
-      const lines = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      const matches = lines.filter((line) => patterns.some((pattern) => pattern.test(line))).slice(0, 4);
-      return matches.length > 0 ? matches : [fallback];
-    },
-  };
-}
-
-function extractClosure(finalOutput?: string) {
-  if (!finalOutput) {
-    return {};
-  }
-
-  const outcome = finalOutput.match(/(?:^|\n)outcome:\s*([^\n]+)/i)?.[1]?.trim();
-  const summary = finalOutput.match(/(?:^|\n)summary:\s*([^\n]+)/i)?.[1]?.trim();
-  return {
-    closureOutcome: outcome,
-    closureSummary: summary,
-  };
-}
-
-function formatDuration(startedAt?: string, finishedAt?: string) {
-  if (!startedAt) {
-    return "Not started";
-  }
-
-  const endMs = finishedAt ? Date.parse(finishedAt) : Date.now();
-  const deltaSeconds = Math.max(0, Math.round((endMs - Date.parse(startedAt)) / 1000));
-  if (deltaSeconds < 60) {
-    return `${deltaSeconds}s`;
-  }
-
-  const minutes = Math.floor(deltaSeconds / 60);
-  const seconds = deltaSeconds % 60;
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-}
-
-function computeLifecycleStage(run: Run, githubObjects: LinkedGithubObject[], evidenceText: string): RunLifecycleStage {
-  if (run.status === "failed" || run.status === "canceled") {
-    return "blocked";
-  }
-
-  const hasCommit = githubObjects.some((item) => item.type === "commit") || /\bcommit\b|sha\b/.test(evidenceText);
-  const hasValidation = /validation|validated|lint|build|test|passed|pass\b/.test(evidenceText);
-  const hasLanded = githubObjects.some((item) => item.type === "pull_request" && item.state?.toLowerCase() === "merged") || /landed|merged|pushed|deployed/.test(evidenceText);
-
-  if (hasLanded) {
-    return "landed";
-  }
-  if (hasValidation) {
-    return "validated";
-  }
-  if (hasCommit) {
-    return "finalist";
-  }
-  return "candidate";
-}
-
-function buildRunScorecard(run: Run, githubObjects: LinkedGithubObject[]): RunScorecard {
-  const outputText = [run.resultPayload?.summary, run.resultPayload?.finalOutput, run.resultPayload?.rawOutput, run.errorPayload?.message, run.errorPayload?.rawOutput].filter(Boolean).join("\n");
-  const signals = textSignals(outputText);
-  const closure = extractClosure(run.resultPayload?.finalOutput);
-  const lifecycleStage = computeLifecycleStage(run, githubObjects, outputText.toLowerCase());
-
-  return {
-    lifecycleStage,
-    durationLabel: formatDuration(run.startedAt, run.finishedAt),
-    validationSignals: signals.matchLines([/\bnpm run\b/, /\blint\b/, /\bbuild\b/, /\btest\b/, /\bvalidate/, /\bpassed\b/, /\bfailed\b/], "No validation evidence captured"),
-    changedFileSignals: signals.matchLines([/\bsrc\//, /\bapp\//, /\blib\//, /\bserver\//, /\bcomponents\//, /\bchanged files?\b/], "No changed-file signal captured"),
-    reviewerSignals: signals.matchLines([/\bsentry\b/, /\btitan\b/, /\breview\b/, /\bqa\b/, /\bapproval\b/], "No reviewer signal captured"),
-    artifactSignals:
-      githubObjects.length > 0
-        ? githubObjects.slice(0, 4).map((item) => `${item.type.replaceAll("_", " ")}: ${item.ref}`)
-        : signals.matchLines([/\bbranch\b/, /\bcommit\b/, /\bsha\b/, /\bpr\b/, /\bpull request\b/], "No branch/commit artifact captured"),
-    ...closure,
-  };
-}
-
 export function listWorkboardTasks(filters: WorkboardFilters = {}): TaskWorkboardItem[] {
   ensureMissionControlFoundation();
   const db = getSqliteDb();
@@ -484,7 +401,7 @@ export function listRunConsoleItems(limit = 50): RunConsoleItem[] {
       },
       lane,
       linkedGithubObjects,
-      scorecard: buildRunScorecard(run, linkedGithubObjects),
+      scorecard: buildRunScorecard(run, linkedGithubObjects, readRunScorecard(run.id)),
     };
   });
 }

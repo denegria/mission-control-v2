@@ -21,6 +21,7 @@ import {
 import { fromJson, getSqliteDb } from "@/server/db/sqlite";
 import { ensureMissionControlFoundation } from "@/server/domain/bootstrap";
 import { getActiveRunForFlow } from "@/server/domain/repository";
+import { writeRunScorecard } from "@/server/domain/run-scorecards";
 import {
   appendEvent,
   eventForFlowCreated,
@@ -766,6 +767,61 @@ function applyRunClosureTransition(run: Run, actor: string, resultPayload: RunRe
   }
 }
 
+function shouldRequestVerification(resultPayload: RunResultPayload | undefined) {
+  const raw = [resultPayload?.summary, resultPayload?.finalOutput, resultPayload?.rawOutput]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+
+  return raw.includes("outcome: done") || raw.includes('"outcome":"done"') || raw.includes("outcome: review") || raw.includes('"outcome":"review"');
+}
+
+function requestSentryVerificationForRun(run: Run, actor: string, resultPayload: RunResultPayload | undefined) {
+  if (!shouldRequestVerification(resultPayload) || run.agent.toLowerCase().includes("sentry")) {
+    return;
+  }
+
+  const flow = loadFlow(run.flowId);
+  if (!flow) {
+    return;
+  }
+
+  const marker = `run ${run.id.slice(0, 8)}`;
+  const db = getSqliteDb();
+  const existing = db
+    .prepare(
+      `
+        SELECT COUNT(1) as count
+        FROM protocol_messages
+        WHERE task_id = ?
+          AND flow_id = ?
+          AND message_type = 'review_submit'
+          AND summary LIKE ?
+          AND status IN ('open', 'acknowledged', 'blocked', 'escalated')
+      `,
+    )
+    .get(run.taskId, run.flowId, `%${marker}%`) as { count: number };
+
+  if (existing.count > 0) {
+    return;
+  }
+
+  emitProtocolMessageRecord({
+    taskId: run.taskId,
+    flowId: run.flowId,
+    actor,
+    type: "review_submit",
+    from: run.agent,
+    to: "Sentry",
+    summary: `Verification requested for ${flow.title} after ${marker}.`,
+    autonomyScope: "within_policy",
+    references: [
+      { type: "task", id: run.taskId },
+      { type: "flow", id: run.flowId },
+    ],
+  });
+}
+
 export function updateFlowOwner(input: { flowId: string; owner: string; actor: string }) {
   ensureMissionControlFoundation();
   const flow = loadFlow(input.flowId);
@@ -1472,7 +1528,9 @@ export function markRunCompleted(input: {
   };
 
   saveEvent(eventForRunCompleted(updatedRun, input.actor));
+  writeRunScorecard(updatedRun);
   applyRunClosureTransition(updatedRun, input.actor, input.resultPayload);
+  requestSentryVerificationForRun(updatedRun, input.actor, input.resultPayload);
   touchTask(updatedRun.taskId, input.actor);
   return updatedRun;
 }
@@ -1505,6 +1563,7 @@ export function markRunFailed(input: {
   };
 
   saveEvent(eventForRunFailed(updatedRun, input.actor));
+  writeRunScorecard(updatedRun);
   touchTask(updatedRun.taskId, input.actor);
   return updatedRun;
 }
@@ -1534,6 +1593,7 @@ export function markRunCanceled(input: {
   };
 
   saveEvent(eventForRunCanceled(updatedRun, input.actor));
+  writeRunScorecard(updatedRun);
   touchTask(updatedRun.taskId, input.actor);
   return updatedRun;
 }

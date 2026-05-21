@@ -1126,7 +1126,7 @@ textarea.mc-inline-input {
 
 .mc-run-console-meta-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -1170,6 +1170,29 @@ textarea.mc-inline-input {
   border-radius: 10px;
   background: rgba(41, 35, 92, 0.2);
   padding: 9px 10px;
+}
+
+.mc-run-console-verification {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  margin-bottom: 12px;
+  border: 1px solid rgba(68, 209, 135, 0.24);
+  border-radius: 10px;
+  background: rgba(29, 93, 62, 0.18);
+  padding: 9px 10px;
+}
+
+.mc-run-console-verification strong {
+  color: #9af0bd;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mc-run-console-verification span {
+  color: #b8c2d8;
+  font-size: 12px;
 }
 
 .mc-run-console-closure strong {

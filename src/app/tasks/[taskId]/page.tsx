@@ -401,6 +401,7 @@ export default async function TaskDetailPage({
 
     revalidatePath(`/tasks/${taskId}`);
     revalidatePath("/tasks");
+    revalidatePath("/runs");
 
     const params = new URLSearchParams(
       result.ok
@@ -436,6 +437,7 @@ export default async function TaskDetailPage({
 
     revalidatePath(`/tasks/${taskId}`);
     revalidatePath("/tasks");
+    revalidatePath("/runs");
   }
 
   const detail = getTaskDetail(taskId);
