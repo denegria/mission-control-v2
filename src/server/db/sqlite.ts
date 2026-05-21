@@ -13,12 +13,20 @@ type DatabaseSyncLike = {
 
 let dbInstance: DatabaseSyncLike | null = null;
 
+function getDefaultDbPath() {
+  if (process.env.VERCEL) {
+    return "/tmp/mission-control.sqlite";
+  }
+
+  return "./data/mission-control.sqlite";
+}
+
 export function getSqliteDb() {
   if (dbInstance) {
     return dbInstance;
   }
 
-  const configuredPath = process.env.MC_DB_PATH ?? "./data/mission-control.sqlite";
+  const configuredPath = process.env.MC_DB_PATH ?? getDefaultDbPath();
   const absolutePath = resolve(process.cwd(), configuredPath);
   mkdirSync(dirname(absolutePath), { recursive: true });
 
