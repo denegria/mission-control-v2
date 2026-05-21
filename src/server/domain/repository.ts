@@ -264,6 +264,7 @@ export function getTaskDetail(taskId: string): {
   handoffs: Handoff[];
   approvals: Approval[];
   runs: Run[];
+  runScorecardsByRunId: Record<string, ReturnType<typeof buildRunScorecard>>;
   protocolMessages: ProtocolMessage[];
   lanes: LaneLink[];
   timeline: TimelineEvent[];
@@ -280,6 +281,14 @@ export function getTaskDetail(taskId: string): {
   const handoffs = (db.prepare("SELECT * FROM handoffs WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapHandoff);
   const approvals = (db.prepare("SELECT * FROM approvals WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapApproval);
   const runs = (db.prepare("SELECT * FROM runs WHERE task_id = ? ORDER BY created_at DESC").all(taskId) as Record<string, unknown>[]).map(mapRun);
+  const taskLinkedGithubObjects = fromJson<LinkedGithubObject[]>(row.linked_github_objects_json as string | null, []);
+  const flowLinkedGithubObjectsById = new Map(flows.map((flow) => [flow.id, flow.linkedGithubObjects ?? []]));
+  const runScorecardsByRunId = Object.fromEntries(
+    runs.map((run) => [
+      run.id,
+      buildRunScorecard(run, [...taskLinkedGithubObjects, ...(flowLinkedGithubObjectsById.get(run.flowId) ?? [])], readRunScorecard(run.id)),
+    ]),
+  );
   const protocolMessages = (
     db.prepare("SELECT * FROM protocol_messages WHERE task_id = ? ORDER BY updated_at DESC, created_at DESC").all(taskId) as Record<string, unknown>[]
   ).map(mapProtocolMessage);
@@ -296,6 +305,7 @@ export function getTaskDetail(taskId: string): {
     handoffs,
     approvals,
     runs,
+    runScorecardsByRunId,
     protocolMessages,
     lanes,
     timeline,

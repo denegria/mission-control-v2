@@ -460,6 +460,7 @@ export default async function TaskDetailPage({
         handoffs={detail.handoffs}
         approvals={detail.approvals}
         runs={detail.runs}
+        runScorecardsByRunId={detail.runScorecardsByRunId}
         protocolMessages={detail.protocolMessages}
         lanes={detail.lanes}
         timeline={detail.timeline}

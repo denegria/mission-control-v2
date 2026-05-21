@@ -20,6 +20,7 @@ import {
   type Task,
   type TimelineEvent,
 } from "@/domain/schema";
+import type { RunLifecycleStage, RunScorecard } from "@/domain/runs";
 import { Panel } from "@/components/mc/AppShell";
 import type { ActorOption } from "@/lib/actors";
 import { getActorLabel } from "@/lib/actors";
@@ -39,11 +40,60 @@ function fmtCanonicalTransition(transition?: ProtocolMessage["canonicalTransitio
 }
 
 function fmtRunAdapter(adapter: Run["adapter"]) {
-  return adapter.replace("native_acp_", "native acp ").replace("acpx_", "");
+  switch (adapter) {
+    case "native_acp_codex":
+      return "Native Codex";
+    case "native_acp_gemini":
+      return "Native Gemini";
+    case "acpx_codex":
+      return "Legacy Codex session";
+    case "acpx_gemini":
+      return "Legacy Gemini session";
+  }
+}
+
+function fmtRunTransport(adapter: Run["adapter"]) {
+  return adapter.startsWith("native_acp_") ? "native runtime bridge" : "legacy acpx compatibility";
 }
 
 function prettyLabel(value: string) {
   return value.replaceAll("_", " ");
+}
+
+function stageLabel(stage: RunLifecycleStage) {
+  switch (stage) {
+    case "candidate":
+      return "Candidate";
+    case "finalist":
+      return "Finalist";
+    case "validated":
+      return "Validated";
+    case "landed":
+      return "Landed";
+    case "blocked":
+      return "Blocked";
+  }
+}
+
+function verificationLabel(scorecard?: RunScorecard) {
+  return scorecard?.verificationStatus ? prettyLabel(scorecard.verificationStatus) : "No verification signal";
+}
+
+function fmtWorkerLink(run: Run) {
+  return run.workerLink?.resumeSessionId ?? run.workerLink?.sessionKey ?? run.workerLink?.sessionId ?? "Not attached";
+}
+
+function RunSignalList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <p className="mc-run-console-signal-title">{title}</p>
+      <ul className="mc-run-console-signals">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function TaskDetailScreen({
@@ -52,6 +102,7 @@ export function TaskDetailScreen({
   handoffs,
   approvals,
   runs,
+  runScorecardsByRunId,
   protocolMessages,
   lanes,
   timeline,
@@ -82,6 +133,7 @@ export function TaskDetailScreen({
   handoffs: Handoff[];
   approvals: Approval[];
   runs: Run[];
+  runScorecardsByRunId: Record<string, RunScorecard>;
   protocolMessages: ProtocolMessage[];
   lanes: LaneLink[];
   timeline: TimelineEvent[];
@@ -109,6 +161,15 @@ export function TaskDetailScreen({
 }) {
   const currentProjectId = task.linkedProjects?.[0] ?? "";
   const currentProjectName = projects.find((project) => project.id === currentProjectId)?.name ?? "Unlinked";
+  const flowById = new Map(flows.map((flow) => [flow.id, flow]));
+  const latestTaskRun = runs[0];
+  const olderTaskRuns = runs.slice(1, 6);
+  const activeTaskRuns = runs.filter((run) => run.status === "queued" || run.status === "running");
+  const latestTaskScorecard = latestTaskRun ? runScorecardsByRunId[latestTaskRun.id] : undefined;
+
+  function laneForRun(run: Run) {
+    return lanes.find((lane) => lane.flowId === run.flowId) ?? lanes.find((lane) => !lane.flowId && lane.taskId === run.taskId);
+  }
 
   function renderGithubLink(link: LinkedGithubObject, key: string) {
     return (
@@ -152,6 +213,92 @@ export function TaskDetailScreen({
 
       <div className="mc-detail-layout">
         <div className="mc-detail-main">
+          <Panel className="mc-panel-emphasis">
+            <div className="mc-flow-card-head">
+              <div>
+                <h3 className="mc-col-title">Task Run State</h3>
+                <p className="mc-meta-line">
+                  {activeTaskRuns.length > 0
+                    ? `${activeTaskRuns.length} active run${activeTaskRuns.length === 1 ? "" : "s"}`
+                    : "No queued or running runs"}
+                  {latestTaskRun ? ` • latest ${prettyLabel(latestTaskRun.status)}` : ""}
+                </p>
+              </div>
+              <div className="mc-flow-badges">
+                <span className="mc-detail-chip">{runs.length} total run{runs.length === 1 ? "" : "s"}</span>
+                {latestTaskScorecard ? <span className="mc-detail-chip">{stageLabel(latestTaskScorecard.lifecycleStage)}</span> : null}
+              </div>
+            </div>
+
+            {latestTaskRun ? (
+              <div className="mc-run-block">
+                <p className="mc-task-kicker">Latest run</p>
+                <h4>{flowById.get(latestTaskRun.flowId)?.title ?? "Unknown flow"}</h4>
+                <p className="mc-meta-line">
+                  {prettyLabel(latestTaskRun.status)} • {fmtRunAdapter(latestTaskRun.adapter)} • {fmtRunTransport(latestTaskRun.adapter)}
+                  {latestTaskRun.triggerSource ? ` • ${prettyLabel(latestTaskRun.triggerSource)}` : ""}
+                </p>
+                <div className="mc-run-console-meta-grid">
+                  <div>
+                    <span>Owner</span>
+                    <strong>{getActorLabel(flowById.get(latestTaskRun.flowId)?.owner, settings)}</strong>
+                  </div>
+                  <div>
+                    <span>Agent</span>
+                    <strong>{latestTaskRun.agent}</strong>
+                  </div>
+                  <div>
+                    <span>Lane</span>
+                    <strong>{laneForRun(latestTaskRun)?.label ?? "Unlinked"}</strong>
+                  </div>
+                  <div>
+                    <span>Worker session</span>
+                    <strong>{fmtWorkerLink(latestTaskRun)}</strong>
+                  </div>
+                  <div>
+                    <span>Updated</span>
+                    <strong>{fmtDate(latestTaskRun.updatedAt)}</strong>
+                  </div>
+                  <div>
+                    <span>Scorecard</span>
+                    <strong>{latestTaskScorecard?.source ?? "missing"}</strong>
+                  </div>
+                  <div>
+                    <span>Verification</span>
+                    <strong>{verificationLabel(latestTaskScorecard)}</strong>
+                  </div>
+                </div>
+                {latestTaskScorecard ? (
+                  <div className="mc-run-console-scorecard">
+                    <RunSignalList title="Validation" items={latestTaskScorecard.validationSignals} />
+                    <RunSignalList title="Changed Files" items={latestTaskScorecard.changedFileSignals} />
+                    <RunSignalList title="Review" items={latestTaskScorecard.reviewerSignals} />
+                    <RunSignalList title="Artifacts" items={latestTaskScorecard.artifactSignals} />
+                  </div>
+                ) : null}
+                {olderTaskRuns.length > 0 ? (
+                  <details className="mc-inline-collapsible">
+                    <summary className="mc-inline-collapsible-summary">Older run history</summary>
+                    <ul className="mc-activity-feed mc-activity-feed-compact">
+                      {olderTaskRuns.map((run) => {
+                        const scorecard = runScorecardsByRunId[run.id];
+                        return (
+                          <li key={run.id}>
+                            {flowById.get(run.flowId)?.title ?? "Unknown flow"} • {prettyLabel(run.status)} • {fmtRunAdapter(run.adapter)}
+                            {scorecard ? ` • ${stageLabel(scorecard.lifecycleStage)} • ${verificationLabel(scorecard)}` : ""}
+                            {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mc-empty-col">No runs have been dispatched for this task yet.</div>
+            )}
+          </Panel>
+
           <Panel>
             <h3 className="mc-col-title">Flows</h3>
             <form action={onCreateFlow} className="mc-inline-form mc-stacked-form">
@@ -190,7 +337,7 @@ export function TaskDetailScreen({
                 );
                 const flowRuns = runs.filter((run) => run.flowId === flow.id);
                 const latestRun = flowRuns[0];
-                const recentRuns = flowRuns.slice(0, 3);
+                const olderRuns = flowRuns.slice(1, 4);
                 const activeRun = flowRuns.find((run) => run.status === "queued" || run.status === "running");
                 const executionPlan = getExecutionPlan({ actor: flow.owner, settings });
                 const approvedApprovals = approvals.filter(
@@ -224,8 +371,12 @@ export function TaskDetailScreen({
                     {latestRun ? (
                       <div className="mc-run-block">
                         <p className="mc-meta-line">
-                          Latest run • {prettyLabel(latestRun.status)} via {fmtRunAdapter(latestRun.adapter)}
+                          Latest run • {prettyLabel(latestRun.status)} • {fmtRunAdapter(latestRun.adapter)} • {fmtRunTransport(latestRun.adapter)}
+                          {latestRun.triggerSource ? ` • ${prettyLabel(latestRun.triggerSource)}` : ""}
                           {latestRun.finishedAt ? ` • ${fmtDate(latestRun.finishedAt)}` : latestRun.startedAt ? ` • ${fmtDate(latestRun.startedAt)}` : ""}
+                        </p>
+                        <p className="mc-meta-line">
+                          Worker session • {fmtWorkerLink(latestRun)} • Verification • {verificationLabel(runScorecardsByRunId[latestRun.id])}
                         </p>
                         {latestRun.resultPayload?.summary ? <p>{latestRun.resultPayload.summary}</p> : null}
                         {latestRun.resultPayload?.finalOutput ? (
@@ -235,13 +386,14 @@ export function TaskDetailScreen({
                         </details>
                       ) : null}
                         {latestRun.errorPayload?.message ? <p className="mc-run-error">{latestRun.errorPayload.message}</p> : null}
-                        {recentRuns.length > 1 ? (
+                        {olderRuns.length > 0 ? (
                           <div>
-                            <p className="mc-meta-line">Recent run history</p>
+                            <p className="mc-meta-line">Older run history</p>
                             <ul className="mc-activity-feed mc-activity-feed-compact">
-                              {recentRuns.map((run) => (
+                              {olderRuns.map((run) => (
                                 <li key={run.id}>
-                                  {prettyLabel(run.status)} via {fmtRunAdapter(run.adapter)}
+                                  {prettyLabel(run.status)} • {fmtRunAdapter(run.adapter)}
+                                  {run.triggerSource ? ` • ${prettyLabel(run.triggerSource)}` : ""}
                                   {run.finishedAt ? ` • ${fmtDate(run.finishedAt)}` : run.startedAt ? ` • ${fmtDate(run.startedAt)}` : ""}
                                 </li>
                               ))}

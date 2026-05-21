@@ -11,7 +11,7 @@ export type ExecutionPlan = {
   adapter: RunAdapter;
   allowedAdapters: RunAdapter[];
   preferredAdapter: RunAdapter;
-  transportLabel: "ACP" | "session";
+  transportLabel: "native runtime bridge" | "legacy acpx session";
   runtimeLabel: string;
 };
 
@@ -54,8 +54,8 @@ export function getExecutionPlan(input: {
       adapter,
       allowedAdapters,
       preferredAdapter,
-      transportLabel: "ACP",
-      runtimeLabel: "Gemini",
+      transportLabel: "native runtime bridge",
+      runtimeLabel: "Native Gemini",
     };
   }
 
@@ -67,8 +67,8 @@ export function getExecutionPlan(input: {
       adapter: "native_acp_gemini",
       allowedAdapters,
       preferredAdapter,
-      transportLabel: "ACP",
-      runtimeLabel: "Gemini",
+      transportLabel: "native runtime bridge",
+      runtimeLabel: "Native Gemini",
     };
   }
 
@@ -80,8 +80,8 @@ export function getExecutionPlan(input: {
       adapter,
       allowedAdapters,
       preferredAdapter,
-      transportLabel: "ACP",
-      runtimeLabel: "OpenAI/Codex",
+      transportLabel: "native runtime bridge",
+      runtimeLabel: "Native Codex",
     };
   }
 
@@ -92,7 +92,7 @@ export function getExecutionPlan(input: {
     adapter: "acpx_codex",
     allowedAdapters,
     preferredAdapter,
-    transportLabel: "session",
-    runtimeLabel: "OpenAI/Codex",
+    transportLabel: "legacy acpx session",
+    runtimeLabel: "Legacy Codex",
   };
 }
